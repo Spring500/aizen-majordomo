@@ -1,0 +1,26 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+
+# runtime data (SQLite db + WAL/SHM)
+data/
+*.db
+*.db-wal
+*.db-shm
+
+# env
+.env
+.env.local
+
+# logs
+*.log
+
+# editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# docs not committed for now (per project decision 2026-06-05)
+docs/
