@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
-import { db } from '../db/index.ts';
+import type { AppEnv } from '../types.ts';
 
-export const cards = new Hono();
+export const cards = new Hono<AppEnv>();
 
 interface CardRow {
   id: string;
@@ -29,6 +29,7 @@ function serialize(row: CardRow) {
 
 // GET /cards — 示例只读端点 (spec 7.3.2)。鉴权/过滤分页留待后续实现。
 cards.get('/', (c) => {
+  const db = c.get('db');
   const rows = db
     .prepare('SELECT * FROM cards ORDER BY created_at DESC LIMIT 50')
     .all() as unknown as CardRow[];
