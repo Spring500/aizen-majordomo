@@ -1,43 +1,7 @@
-// commit-msg 校验：实现「提交规范.md」中的硬性规则。
-// 用法：node scripts/verify-commit-msg.mjs <commit-msg-file>
+// commit-msg hook 入口:校验单条提交信息 + 暂存文件与类型一致性。
+// 用法:node scripts/verify-commit-msg.mjs <commit-msg-file>
 import { readFileSync } from 'node:fs';
-import { execSync } from 'node:child_process';
-
-const TYPES = ['功能', '修复', '重构', '文档', '测试', '构建', '性能', '样式', '杂项'];
-
-// 只对这三类「非代码」类型要求文件性质纯净；其余代码类型宽松放行（可夹带文档）。
-const PURE_TYPES = { 文档: 'doc', 构建: 'build', 测试: 'test' };
-const CATEGORY_LABEL = { doc: '文档', build: '构建/工具链', test: '测试' };
-
-function categorize(path) {
-  const p = path.replace(/\\/g, '/');
-  const base = p.split('/').pop() ?? p;
-  if (/(^|\/)(tests?|__tests__)\//.test(p) || /\.(test|spec)\.[cm]?[jt]sx?$/.test(base)) return 'test';
-  if (
-    /\.(md|mdx|markdown|txt|rst)$/i.test(base) ||
-    /(^|\/)docs?\//.test(p) ||
-    /^(README|CHANGELOG|LICENSE|AUTHORS|CONTRIBUTING)(\.|$)/i.test(base)
-  )
-    return 'doc';
-  if (
-    /(^|\/)(\.husky|scripts|\.github)\//.test(p) ||
-    /^(package(-lock)?\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|yarn\.lock|tsconfig.*\.json|\.gitignore|\.npmrc|\.nvmrc|\.editorconfig|Dockerfile|docker-compose\.ya?ml)$/.test(base) ||
-    /\.config\.[cm]?[jt]s$/.test(base) ||
-    /^\.(prettier|eslint|commitlint)/.test(base)
-  )
-    return 'build';
-  return 'code';
-}
-
-function stagedFiles() {
-  try {
-    return execSync('git diff --cached --name-only -z', { encoding: 'utf8' })
-      .split('\0')
-      .filter(Boolean);
-  } catch {
-    return [];
-  }
-}
+import { validateMessage, validateStagedAgainstType, printErrors } from './commit-rules.mjs';
 
 const file = process.argv[2];
 if (!file) {
@@ -45,97 +9,12 @@ if (!file) {
   process.exit(1);
 }
 
-const raw = readFileSync(file, 'utf8');
+const { skip, errors, type } = validateMessage(readFileSync(file, 'utf8'));
+if (skip) process.exit(0);
 
-// 去掉注释行与 git 的 scissors（"# ---- >8 ----"）之后的内容
-const lines = [];
-for (const line of raw.split(/\r?\n/)) {
-  if (line.startsWith('# ------------------------ >8')) break;
-  if (line.startsWith('#')) continue;
-  lines.push(line);
-}
-// 去除尾部空行
-while (lines.length && lines[lines.length - 1].trim() === '') lines.pop();
-
-const text = lines.join('\n');
-const title = (lines[0] ?? '').trim();
-
-// 自动放行 git 生成的合并/回退/fixup 提交
-if (/^(Merge |Revert |fixup!|squash!)/.test(title)) process.exit(0);
-
-const errors = [];
-
-// 规则 1：首行格式 类型(范围)?: 标题
-const titleRe = new RegExp(`^(${TYPES.join('|')})(\\([^)]+\\))?: (.+)$`);
-const m = title.match(titleRe);
-if (!m) {
-  errors.push(
-    `首行格式不对。应为「类型: 标题」，类型须为：${TYPES.join('、')}（可加范围，如 功能(auth): ...）。\n  当前首行：${title || '(空)'}`,
-  );
-} else {
-  // 规则 2：标题长度 ≤ 50，且不以句号结尾
-  const subject = m[3].trim();
-  if ([...title].length > 50) errors.push(`标题过长（${[...title].length} 字符），请控制在 50 字符以内。`);
-  if (/[。.]$/.test(subject)) errors.push('标题末尾不要加句号。');
-}
-
-// 规则 3：首行之后必须空一行
-if (lines.length < 2 || lines[1].trim() !== '') {
-  errors.push('首行（标题）之后必须空一行再写正文。');
-}
-
-// 规则 4：必须有「意图」段且有内容
-const intentMatch = text.match(/^意图[：:]\s*(.*)$/m);
-if (!intentMatch) {
-  errors.push('缺少「意图」段：正文需有一行以「意图：」开头，说明为什么做这次提交。');
-} else if (intentMatch[1].trim() === '') {
-  errors.push('「意图：」后面没有内容，请写清本次提交要解决的问题或目标。');
-}
-
-// 规则 5：必须有「主要修改」段且至少一条「- 」要点
-const changesIdx = lines.findIndex((l) => /^主要修改[：:]/.test(l.trim()));
-if (changesIdx === -1) {
-  errors.push('缺少「主要修改」段：正文需有一行以「主要修改：」开头，其下逐条列出改了什么。');
-} else {
-  const hasBullet = lines
-    .slice(changesIdx + 1)
-    .some((l) => /^\s*[-*]\s+\S/.test(l));
-  if (!hasBullet) errors.push('「主要修改」段下至少要有一条以「- 」开头的要点。');
-}
-
-// 规则 7：禁止模型署名
-const signatureRe = /co-?authored-by:|generated with|🤖/i;
-const offending = lines.find((l) => signatureRe.test(l));
-if (offending) {
-  errors.push(`禁止模型署名（一件工作可能跨模型，标注模型干扰统计）。请删除：${offending.trim()}`);
-}
-
-// 规则 8：类型 ↔ 文件性质一致性（宽松：代码类型可夹带文档，不查）
-const declaredType = m ? m[1] : null;
-if (declaredType && PURE_TYPES[declaredType]) {
-  const want = PURE_TYPES[declaredType];
-  const bad = stagedFiles().filter((f) => categorize(f) !== want);
-  if (bad.length) {
-    errors.push(
-      `「${declaredType}」提交应只包含${CATEGORY_LABEL[want]}文件，但检测到不匹配文件，请拆到对应类型的独立提交：\n      ${bad.join('\n      ')}`,
-    );
-  }
-}
-
-if (errors.length) {
-  console.error('\n✗ commit message 不符合规范（见 提交规范.md）：\n');
-  for (const e of errors) console.error('  • ' + e);
-  console.error('\n  正确示例：');
-  console.error('  ┌─────────────────────────────────────────');
-  console.error('  │ 功能: 增加令牌鉴权中间件');
-  console.error('  │');
-  console.error('  │ 意图：让 agent 通过 Bearer 令牌访问 API，并按角色 scope 限权。');
-  console.error('  │');
-  console.error('  │ 主要修改：');
-  console.error('  │ - 新增 src/middleware/auth.ts，解析并校验令牌');
-  console.error('  │ - 在 /cards 路由挂载中间件');
-  console.error('  └─────────────────────────────────────────\n');
+const all = [...errors, ...validateStagedAgainstType(type)];
+if (all.length) {
+  printErrors(all);
   process.exit(1);
 }
-
 process.exit(0);

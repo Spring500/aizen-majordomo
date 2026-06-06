@@ -1,0 +1,8 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+# 仅在「合并进 main」时执行全量闸门;合并进其它分支放行。
+[ "$branch" != "main" ] && exit 0
+
+echo "[pre-merge-commit] 合并进 main → 校验合入消息合规 + 全量门禁"
+node scripts/verify-range-messages.mjs "HEAD..MERGE_HEAD" || exit 1
+pnpm test && pnpm test:e2e

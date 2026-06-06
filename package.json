@@ -10,8 +10,11 @@
   "scripts": {
     "dev": "node --experimental-sqlite --no-warnings --import tsx --watch src/index.ts",
     "start": "node --experimental-sqlite --no-warnings --import tsx src/index.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "echo \"(占位) 前端/集成验收待前端落地后接 Playwright\"",
     "typecheck": "tsc --noEmit",
-    "prepare": "husky"
+    "prepare": "husky && git config merge.ff false"
   },
   "dependencies": {
     "@hono/node-server": "^1.13.7",
@@ -23,6 +26,7 @@
     "@types/node": "^22.10.2",
     "husky": "^9.1.7",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.8"
   }
 }

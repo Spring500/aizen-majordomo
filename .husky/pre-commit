@@ -1,0 +1,9 @@
+branch=$(git rev-parse --abbrev-ref HEAD)
+
+if [ "$branch" = "main" ]; then
+  echo "[pre-commit] 主干提交 → 全量门禁(Vitest + e2e)"
+  pnpm test && pnpm test:e2e
+else
+  echo "[pre-commit] 分支提交 → 轻量门禁(全部快速 Vitest)"
+  pnpm test
+fi
