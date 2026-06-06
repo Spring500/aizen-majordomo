@@ -95,16 +95,24 @@ pnpm typecheck
 ```
 aizen-majordomo/
 ├─ src/
-│  ├─ index.ts            # Hono 入口，挂载路由
+│  ├─ index.ts            # 入口：createDb + createApp + serve
+│  ├─ app.ts              # createApp(db)：组装 Hono、注入 db、挂载路由
+│  ├─ types.ts            # 共享类型（AppEnv 等）
 │  ├─ db/
-│  │  ├─ index.ts         # SQLite 连接（WAL/外键/busy_timeout）+ migrate()
+│  │  ├─ index.ts         # createDb(path)：连接(WAL/外键)+建表，支持 :memory:
 │  │  └─ schema.sql       # 规格 §5.2 全部表与索引（幂等建表）
 │  └─ routes/
 │     └─ cards.ts         # 示例只读端点 GET /cards
+├─ tests/http/            # HTTP 行为验收（Vitest + app.request）
+├─ scripts/               # 提交校验等工具脚本
+├─ .husky/                # git hook（commit-msg / pre-commit / pre-merge-commit）
 ├─ data/                  # 运行时生成的 SQLite 文件（已 gitignore）
 ├─ docs/                  # 设计文档（暂不入库）
+├─ 开发规范.md            # 提交信息规范 + 开发工作流（单一事实源）
+├─ AGENTS.md              # 面向 AI agent 的协作约定
 ├─ package.json
 ├─ pnpm-workspace.yaml
+├─ vitest.config.ts
 └─ tsconfig.json
 ```
 
@@ -114,7 +122,14 @@ aizen-majordomo/
 |---|---|
 | `pnpm dev` | 开发模式启动（`--watch` 热重启） |
 | `pnpm start` | 启动服务 |
+| `pnpm test` | 跑全部快速 Vitest（单元 + HTTP 验收） |
+| `pnpm test:watch` | Vitest 监听模式（红绿循环用） |
+| `pnpm test:e2e` | 前端/集成验收（占位，待前端落地接 Playwright） |
 | `pnpm typecheck` | TypeScript 类型检查（不产出文件） |
+
+## 开发规范
+
+提交信息格式与开发工作流（worktree、两段式测试门禁、落地方式）见 [开发规范.md](开发规范.md)，由 husky hook 本地强制校验。AI agent 另见 [AGENTS.md](AGENTS.md)。
 
 ## 数据库
 
