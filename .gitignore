@@ -24,3 +24,6 @@ data/
 
 # docs not committed for now (per project decision 2026-06-05)
 docs/
+
+# local git worktrees
+.worktrees/
