@@ -2,7 +2,7 @@
 
 自托管的本地看板系统，同时服务人类与任意 AI agent：人类用作个人备忘与对 agent 的指挥/审批界面，agent 用作任务协作与向人类发起异步确认（决策卡）。
 
-> 当前为脚手架阶段（v0.1）：已具备最小可跑的 Hono 服务、完整 SQLite 建表（规格 §5.2）、`/health` 与只读 `/cards`。鉴权、流转、changes、hook、前端尚未实现。
+> 当前具备阶段 1 本地单人可用看板：Hono API、SQLite 持久化、React 前端、卡片创建/列表/详情/基础编辑，以及 Vitest + Playwright 验收。鉴权、状态流转、changes、评论和 hook 尚未实现。
 
 ## 技术栈
 
@@ -11,8 +11,10 @@
 | 运行时 | Node.js ≥ 22.5（TypeScript，ESM） |
 | 存储 | SQLite（`node:sqlite` 内置驱动，WAL） |
 | 后端框架 | Hono + `@hono/node-server` |
+| 前端 | React + Vite |
 | 校验 | zod |
 | 密码哈希 | `@node-rs/argon2`（预留给后续登录功能） |
+| 验收 | Vitest + Playwright |
 | 包管理器 | pnpm |
 
 ## 环境要求
@@ -72,6 +74,22 @@ pnpm start
 aizen-majordomo listening on http://localhost:3000
 ```
 
+## 前端开发
+
+开发期使用两个本地服务：
+
+- `pnpm dev`：启动 Hono API，默认 `http://127.0.0.1:3000`
+- `pnpm dev:web`：启动 Vite React 前端，默认 `http://127.0.0.1:5173`
+
+正式本地使用：
+
+```bash
+pnpm build:web
+pnpm start
+```
+
+打开 `http://127.0.0.1:3000`。
+
 ## 验证
 
 ```bash
@@ -79,7 +97,7 @@ aizen-majordomo listening on http://localhost:3000
 curl http://localhost:3000/health
 # {"status":"ok","name":"aizen-majordomo","time":<epoch_ms>}
 
-# 列卡（当前为空）
+# 列卡
 curl http://localhost:3000/cards
 # {"cards":[],"total":0}
 ```
@@ -88,6 +106,12 @@ curl http://localhost:3000/cards
 
 ```bash
 pnpm typecheck
+```
+
+端到端验收：
+
+```bash
+pnpm test:e2e
 ```
 
 ## 目录结构
@@ -102,8 +126,10 @@ aizen-majordomo/
 │  │  ├─ index.ts         # createDb(path)：连接(WAL/外键)+建表，支持 :memory:
 │  │  └─ schema.sql       # 规格 §5.2 全部表与索引（幂等建表）
 │  └─ routes/
-│     └─ cards.ts         # 示例只读端点 GET /cards
+│     └─ cards.ts         # 阶段 1 卡片 API：创建、列表、读取、编辑
 ├─ tests/http/            # HTTP 行为验收（Vitest + app.request）
+├─ tests/e2e/             # Playwright 浏览器验收
+├─ web/                   # React + Vite 前端
 ├─ scripts/               # 提交校验等工具脚本
 ├─ .husky/                # git hook（commit-msg / pre-commit / pre-merge-commit）
 ├─ data/                  # 运行时生成的 SQLite 文件（已 gitignore）
@@ -121,10 +147,12 @@ aizen-majordomo/
 | 命令 | 作用 |
 |---|---|
 | `pnpm dev` | 开发模式启动（`--watch` 热重启） |
+| `pnpm dev:web` | 启动 Vite React 前端开发服务 |
+| `pnpm build:web` | 构建 React 前端到 `web/dist` |
 | `pnpm start` | 启动服务 |
 | `pnpm test` | 跑全部快速 Vitest（单元 + HTTP 验收） |
 | `pnpm test:watch` | Vitest 监听模式（红绿循环用） |
-| `pnpm test:e2e` | 前端/集成验收（占位，待前端落地接 Playwright） |
+| `pnpm test:e2e` | Playwright 端到端验收 |
 | `pnpm typecheck` | TypeScript 类型检查（不产出文件） |
 
 ## 开发规范
@@ -135,14 +163,26 @@ aizen-majordomo/
 
 启动时自动执行 `src/db/schema.sql`（全部 `CREATE TABLE IF NOT EXISTS`，可重复运行）。包含表：`cards`、`comments`、`changes`、`hooks`、`statuses`、`transitions`、`roles`、`tokens`、`sessions`、`settings`。已开启 WAL 以满足并发读写的原子性要求。
 
-## 路线图（未实现）
+## 阶段 1 人工验收
+
+1. 删除或更换本地 `DB_PATH`，从空库启动。
+2. 打开前端首页，看到空状态。
+3. 创建一张 task，标题和正文能保存。
+4. 创建一张 decision，填写两个 options，详情抽屉能看到 options。
+5. 创建一张 memo，类型显示正确。
+6. 刷新页面，三张卡仍然存在。
+7. 打开 task 详情，修改标题、正文、优先级、负责人，保存后仍显示更新内容。
+8. 尝试创建空标题卡片，页面显示“标题不能为空”。
+9. 使用类型筛选，列表只显示目标类型。
+10. 连续记录至少 5 条真实事项，不需要 curl 或直接改数据库。
+
+## 后续路线图（未实现）
 
 - 人类登录与会话（`/login`、`/logout`，argon2 + Cookie）
 - 令牌鉴权中间件（`Authorization: Bearer`）与 RBAC scope 校验
-- 卡片写入 / 过滤分页（`POST /cards`、`PATCH /cards/{id}`）
 - 状态流转校验链（`POST /cards/{id}/transition`、`/reply`）
 - 评论（`/comments`）与增量变更（`/changes?since=`）
 - 出站 hook 运行器
-- React 前端（看板 / 备忘 / 回复 / 管理）
+- 看板体验增强（搜索、快捷筛选、管理界面、回复视图）
 
 详见 `docs/` 下的规格说明。

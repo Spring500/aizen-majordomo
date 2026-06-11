@@ -16,6 +16,8 @@ data/
 
 # logs
 *.log
+test-results/
+playwright-report/
 
 # editor / OS
 .DS_Store
