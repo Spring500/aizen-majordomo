@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<script type="text/x-markdown">
+
+# 本地 Agent 看板系统调研报告（v2 · 双向交互版）
+
+`2026-06-04` · SunGame · 调研
+
+---
+
+## 1. 需求与硬约束（v2 已更新）
+
+把**看板变成人类与 agent 交互的主信道**：不只是任务记录板，而是一条**双向、可阻塞-可恢复**的回路——agent 需要人类拍板时建卡发起，人类回复并改状态后，agent 收到响应继续运行。
+
+| # | 硬约束 | 说明 |
+|---|---|---|
+| 1 | **写入原子性** | 多 agent + 人类并发读写，不撕裂、不丢更新 |
+| 2 | **权限管理** | 禁止 AI 随意删看板/卡片，区分"人可做"与"AI 可做" |
+| 3 | **Hook（强需求）** | 既要出站（卡片变更通知人类/触发脚本），又要**入站反向回灌**（人类回复后唤醒 agent 续作） |
+| 4 | **双向交互 / 等待-恢复** | 决策卡 = agent 对人类的提问；支持人类**隔很久**才回 |
+| 5 | **不接受第三方托管数据** | 必须自托管、数据留本机；但**可接受非文件型**（数据库 OK） |
+| 6 | **Agent 无关** | 不能假定所有 agent 都是 Claude Code，机制要对任意 agent 通用 |
+
+!!! Warning 两条会"杀选项"的新约束
+    **约束 6（agent 无关）** 直接否决了"靠 Claude Code hooks 补能力"的旧路线 B——因为那只对 Claude Code 生效。**约束 3+4** 要求"等待-恢复"必须内置在**看板系统本身**（服务端 hooks + changes API + 推送），而非寄生在某个 agent 的运行时里。
+
+---
+
+## 2. 核心结论（先看这里）
+
+经第二轮调研，出现了两个**专为"人类审批闸门 + agent 阻塞恢复"**设计的自托管工具，远比第一轮的通用看板对口：
+
+- **Veritas Kanban** —— 最贴你的全部硬约束：gate step（阻塞→人审批→从检查点恢复）+ 超时升级 + 最丰富的 hook 体系 + MCP/CLI 双接入 + agent 无关 + `changes` 增量查询 + WebSocket 推送。MIT 自托管。
+- **Mission Control** —— 更重的编排平台：**SQLite 真事务原子性** + RBAC + Aegis 审批闸门 + 带重试/HMAC 的出站 webhook + WebSocket/SSE。MIT 自托管。
+
+:::mermaid
+flowchart TD
+  R[需求:看板=人机交互主信道<br/>双向+原子+权限+hook+自托管+agent无关] --> Q{最看重哪点?}
+  Q -->|最强 hook + 审批恢复 + 文件可版本化| V[★ Veritas Kanban]
+  Q -->|最强原子性 + RBAC + 治理| M[★ Mission Control]
+  V --> V1[注意:文件型存储,原子性靠服务端串行<br/>SQLite 在 v5 路线图]
+  M --> M1[注意:偏重编排平台,功能面更大]
+:::
+
+图 1：两个主推及其权衡
+
+---
+
+## 3. 看板作为人机交互主信道：双向回路模型
+
+这是 v2 的核心。决策卡本质是 **agent 对人类的一次异步 RPC**：
+
+:::mermaid
+sequenceDiagram
+    participant A as Agent(任意厂商)
+    participant K as 看板系统(自托管)
+    participant H as 人类
+    A->>K: 1. 建卡(待确认),写入问题/选项
+    K-->>H: 2. 出站hook:通知"有卡待你定"(IM/桌面)
+    Note over A: 3. agent 不阻塞单条命令<br/>改为轮询/被唤醒
+    H->>K: 4. 在卡上写回复 + 改状态(已答复)
+    K-->>A: 5. changes API/WebSocket 推送变更
+    A->>K: 6. 读回复,回灌到自身上下文
+    Note over A: 7. 继续运行
+:::
+
+图 2：双向回路——出站通知 + 入站回灌
+
+!!! Tip 关键设计点
+    - **决策卡 = 提问**：你最早提的"待讨论决策"，本质就是这种确认请求卡。
+    - **hook 是双向总线**：出站=通知人类有卡待处理；入站=人类答复后让 agent 续作。
+    - **等待机制内置看板**：看板提供 `changes?since=...` 增量查询 + WebSocket/SSE 推送，每个 agent 自行决定怎么"等"，与具体 agent 解耦。
+
+---
+
+## 4. 关键技术核心：等待-恢复原语 + 超时实测
+
+"agent 怎么等、怎么醒"才是真难点。三种现实实现：
+
+| 方式 | 机制 | 适合的人类延迟 |
+|---|---|---|
+| A 阻塞式 wait 工具 | agent 调 `await(card)` 不返回直到答复 | ❌ 不适合长延迟（见下超时实测） |
+| **B 轮询 + 定时唤醒** | agent 建卡后结束本轮，周期回查 changes，答了就续作 | ✅ 小时级、跨夜 |
+| C 推送驱动 | 看板 WebSocket/SSE 主动推变更给 agent 运行时 | ✅ 取决于 agent 运行时能否接收 |
+
+### 4.1 Claude Code 超时实测（回答"10 分钟是不是硬限制"）
+
+- **官方**：Bash 前台单次默认 2 分钟、上限 **10 分钟**（600000ms），理论可用 `BASH_DEFAULT_TIMEOUT_MS` / `BASH_MAX_TIMEOUT_MS` 覆盖。
+- **社区 issue（需打折，非官方确认）**：报告这两个环境变量**实际不生效**（[#34138](https://github.com/anthropics/claude-code/issues/34138)、[#25881](https://github.com/anthropics/claude-code/issues/25881)），后台 `run_in_background` 也可能被同一超时杀掉（[#11716](https://github.com/anthropics/claude-code/issues/11716)）。
+
+!!! Note 对"超过 10 分钟 CLI 工作"的准确结论
+    1. **"超过 10 分钟的工作"做得了**——靠拆分 / 流式监控 / 周期推进，只是不能塞进"一条命令"。
+    2. **"一条命令阻塞几小时等人"做不到**——无论上限是 10 分钟还是更短都不行。
+    3. **且 agent 不全是 Claude Code**——所以等待不该绑定任何单一 agent 的超时行为，必须走「方式 B/C」由看板提供 changes/推送。
+
+> 该结论恰好**强化**了第 3 节架构：不靠阻塞调用，把"等待-恢复"做进看板。
+
+---
+
+## 5. 筛选标准与淘汰清单
+
+按硬约束 3/4/5/6 过滤，以下选项被**淘汰**：
+
+| 被淘汰项 | 淘汰原因（命中的硬约束失败） |
+|---|---|
+| Backlog.md / kanban-md | 文件型无内置服务端 hook（仅 git hook，P4 失效）；无审批闸门/无 changes 推送；旧"配 Claude Code hooks"路线违反约束 6 |
+| MarkdownTaskManager | 无 hook、无 MCP、无等待-恢复 |
+| kanban-skill / KanBanLess | Claude 技能约定，无 hook、非 agent 无关（约束 6） |
+| VS Code Agent Kanban | 绑 Copilot/VSCode，无 hook，非 agent 无关 |
+| kanban-mcp (eyalzh) | 仅 MCP 记忆层，无 hook、无审批闸门 |
+| vibe-kanban | **已日落**；且是"拖卡→一次性派 agent"，非"运行中暂停问人再恢复" |
+| Hermes Agent | agent 即 hermes 框架本身，非 agent 无关；过重 |
+| saltbo/agent-kanban、Claw-Kanban、kanbots | 编排型"一次性派发"范式；其人工闸门是**派发前**确认，不是**运行中**暂停-恢复 |
+
+> 注：第三方托管 SaaS 本就不在候选内；上述均与"自托管"无关，纯按 hook/双向/agent 无关淘汰。
+
+**入围**（自托管 + 内置 agent 无关 hook + 审批/等待-恢复 + MCP&CLI）：Veritas Kanban、Mission Control；备选：Flux、Moo Tasks、Planka(经 Kanban MCP)；旁支：Heym、TaskView。
+
+---
+
+## 6. 入围方案深评
+
+### 6.1 ★ Veritas Kanban — ⭐732 · TS/MIT · 高度活跃
+
+[github.com/BradGroux/veritas-kanban](https://github.com/BradGroux/veritas-kanban)
+
+- **自托管/数据**：完全自托管，存储为 **Markdown + YAML frontmatter**，无外部 DB/SaaS（v5 路线图含 SQLite）。
+- **审批闸门（命中约束 4）**：workflow 引擎的 **gate step**——agent 提交→系统在闸门**阻塞**→人类批准/驳回→**从检查点恢复**；并有**超时升级**（超期自动转交更高优先级审批人）。
+- **Hook（命中约束 3）**：**7 个内置 hook、8 个事件、自定义 hook API**；YAML 工作流（顺序/并行扇出扇入/循环）；状态变更可触发下游动作。
+- **入站回灌**：agent 经 `/api/changes?since=...` 高效轮询，变更经 **WebSocket** 广播——即第 3 节的 changes+推送。
+- **接入**：**MCP（36 工具/8 类）** + CLI（`vk begin/done` 等）。
+- **Agent 无关（命中约束 6）**：明确支持任意 AI agent / CLI / MCP 客户端（OpenClaw、Codex、HermesAgent、任意 HTTP 调用方）。
+- **短板**：文件型存储，**原子性靠服务端串行写**（非 DB 事务，约束 1 略弱于 SQLite 方案）；权限/RBAC 文档不如 Mission Control 清晰。
+
+### 6.2 ★ Mission Control — ⭐5173 · TS/MIT · 高度活跃
+
+[github.com/builderz-labs/mission-control](https://github.com/builderz-labs/mission-control)
+
+- **自托管/数据**：完全自托管，**SQLite（better-sqlite3，WAL）**，`pnpm start` 即起，无需 Redis/PG/Docker，数据在本地 `.data/`。
+- **原子性（命中约束 1，最强）**：SQLite 事务 = 真原子。
+- **审批闸门（命中约束 4）**：内置 **Aegis 审查**——无人 sign-off 则**阻止任务完成**；六列看板（inbox→assigned→in progress→review→quality review→done）。
+- **Hook/Webhook（命中约束 3）**：**出站 webhook**带交付历史、指数退避重试、断路器、**HMAC-SHA256 签名**；实时 **WebSocket + SSE** 推送。（状态变更触发脚本的细节文档未尽述。）
+- **权限（命中约束 2，最强）**：**RBAC 三角色**——查看者(只读)/操作员(读写任务&agent)/管理员(完全)；可据此禁止 AI 删库。
+- **接入/Agent 无关**：MCP + CLI；框架适配层支持 OpenClaw、CrewAI、LangGraph、AutoGen、Claude SDK 等多 agent 注册。
+- **短板**：偏**重编排平台**（含成本监控、多 agent 调度等），功能面大于"纯交互看板"；Aegis 的"恢复"机制文档不如 Veritas gate step 明确。
+
+### 6.3 备选与旁支
+
+<details>
+<summary>Flux / Moo Tasks / Planka(经 Kanban MCP) / Heym / TaskView</summary>
+
+| 项目 | 链接 | 定位与差距 |
+|---|---|---|
+| Flux | [介绍](https://paddo.dev/blog/flux-kanban-for-ai-agents/) | MCP + **SSE** + SQLite，agent 无关、可自托管；但 hook 偏弱（SSE 事件非服务端 hook 脚本），无显式审批闸门 |
+| Moo Tasks ⭐40 | [github](https://github.com/dizlexic/moo-tasks) | 自托管、per-board token、MCP；缺明确 hook/审批闸门 |
+| Planka(经 [bradrisse/kanban-mcp](https://github.com/bradrisse/kanban-mcp) ⭐50) | — | Planka 成熟自托管，但经 MCP 桥接；无原生 agent 审批-恢复 |
+| Heym | [heym.run](https://heym.run/) | 源码可得自托管**工作流自动化平台**，含 human-in-the-loop 审批检查点 + MCP 客户端/服务端；形态是 DAG 工作流而非看板 |
+| TaskView | [taskview.tech](https://taskview.tech/) | 自托管、RBAC + scoped token + webhook + MCP；但偏传统任务平台，无"运行中 agent 暂停-恢复"审批语义 |
+
+</details>
+
+---
+
+## 7. 全能力对比表（入围 + 代表性淘汰项）
+
+> 图例：✅ 原生 ｜ ⚠️ 部分/需约定 ｜ ❌ 无 ｜ ➖ 不适用。star 为 2026-06-04 实测。
+
+| 项目 | 状态 | 存储 | 原子性 | 权限 | Hook(双向) | 审批-恢复 | Agent无关 | 接入 | ⭐ |
+|---|---|---|---|---|---|---|---|---|---|
+| **Veritas Kanban** | ✅入围 | MD+YAML(服务端) | ⚠️ 服务端串行 | ⚠️ | ✅ **7hook/8事件/自定义** | ✅ **gate+超时升级** | ✅ | MCP+CLI | 732 |
+| **Mission Control** | ✅入围 | **SQLite(WAL)** | ✅ **事务** | ✅ **RBAC三角色** | ✅ webhook(重试/HMAC)+WS/SSE | ✅ **Aegis sign-off** | ✅ 适配器 | MCP+CLI | 5173 |
+| Flux | 备选 | JSON/SQLite | ✅ SQLite | ⚠️ token | ⚠️ SSE | ❌ | ✅ | MCP+CLI | 站点 |
+| Moo Tasks | 备选 | MySQL/SQLite | ✅ | ✅ board token | ⚠️ | ❌ | ✅ | MCP+Web | 40 |
+| TaskView | 旁支 | DB | ✅ | ✅ RBAC+token | ✅ webhook | ❌ | ⚠️ | MCP+REST | 站点 |
+| Backlog.md | ❌淘汰 | MD 文件 | ⚠️ | ❌ | ⚠️ 仅git hook | ❌ | ⚠️ | CLI+MCP | 5675 |
+| kanban-md | ❌淘汰 | MD 文件 | ⚠️ Claims | ❌ | ❌ | ❌ | ⚠️ | CLI+Skill | 140 |
+| vibe-kanban | ❌淘汰(日落) | 本地 | ✅ | ⚠️ | ⚠️ | ❌(派发式) | ✅ | Web+MCP | 26783 |
+
+---
+
+## 8. 流行度（入围/相关项，有公开仓库者）
+
+:::chart
+{
+  "title": {"text": "GitHub Star（2026-06-04）", "left": "center", "textStyle": {"color": "#c2c7d0"}},
+  "tooltip": {"trigger": "axis", "axisPointer": {"type": "shadow"}},
+  "grid": {"left": 160},
+  "xAxis": {"type": "value", "axisLabel": {"color": "#888"}},
+  "yAxis": {"type": "category", "inverse": true, "data": ["moo-tasks", "Claw-Kanban", "kanban-md", "saltbo/agent-kanban", "kanbots", "★Veritas Kanban", "★Mission Control"], "axisLabel": {"color": "#aaa"}},
+  "series": [{"type": "bar", "data": [40, 64, 140, 325, 397, 732, 5173], "itemStyle": {"color": "#6ab0f3"}, "label": {"show": true, "position": "right", "color": "#ccc"}}]
+}
+:::
+
+图 3：两个主推中，Mission Control 体量大、Veritas 增长快（备选 Flux/TaskView 以站点分发无 star）
+
+---
+
+## 9. 推荐：Veritas vs Mission Control
+
+| 维度 | Veritas Kanban | Mission Control |
+|---|---|---|
+| 形态 | 轻量交互看板（更贴"主信道"定位） | 较重的编排治理平台 |
+| 原子性(约束1) | ⚠️ 服务端串行（v5 上 SQLite） | ✅ SQLite 事务，最强 |
+| 权限(约束2) | ⚠️ 偏 hook/治理 | ✅ RBAC 三角色，最清晰 |
+| Hook 双向(约束3) | ✅ 最丰富(7hook/8事件/自定义API) | ✅ webhook+WS/SSE |
+| 审批-恢复(约束4) | ✅ **gate step + 超时升级，最契合** | ✅ Aegis sign-off（恢复细节略含糊） |
+| 数据可版本化 | ✅ MD 文件可纳入 P4/grep | ❌ 在 SQLite 内 |
+
+!!! Tip 我的建议
+    - 若你最看重**"决策卡=提问、阻塞-审批-恢复"这套交互语义本身**、以及**文件可纳入 P4/grep** → 选 **Veritas Kanban**（gate step + 超时升级 + 最强 hook + agent 无关，与你需求几乎逐条对上；代价是原子性需靠服务端串行，等 v5 SQLite）。
+    - 若你把**写入原子性 + RBAC 防删**摆在第一位、且不介意一个更重的治理平台 → 选 **Mission Control**（SQLite 真事务 + 三角色 RBAC + HMAC webhook）。
+    - **建议先各起一个本地实例**，用同一个真实场景（"agent 跑到一半建决策卡 → 你隔几小时回复 → agent 恢复"）各跑一遍，对比 gate/Aegis 的实际恢复体验再定。
+
+### 9.1 下一步
+
+- [ ] 你定主攻 **Veritas** 还是 **Mission Control**（或要我先各做一次本地起服务 + 端到端验证）
+- [ ] 定后我出**落地评估**：部署、与 P4 联动的出站 hook、agent 侧轮询/唤醒接法（Claude Code 用 ScheduleWakeup，其他 agent 用各自方式）
+- [ ] 验证清单：建卡→出站通知→人类改状态→agent 经 changes/推送恢复，全链路打通
+
+---
+
+## 10. 信息来源
+
+- 主推：[Veritas Kanban](https://github.com/BradGroux/veritas-kanban) · [Mission Control](https://github.com/builderz-labs/mission-control)
+- 备选/旁支：[Flux](https://paddo.dev/blog/flux-kanban-for-ai-agents/) · [Moo Tasks](https://github.com/dizlexic/moo-tasks) · [TaskView](https://taskview.tech/) · [Heym](https://heym.run/) · [Kanban MCP→Planka](https://github.com/bradrisse/kanban-mcp)
+- 超时实测：[#34138](https://github.com/anthropics/claude-code/issues/34138) · [#25881](https://github.com/anthropics/claude-code/issues/25881) · [#11716](https://github.com/anthropics/claude-code/issues/11716) · [Tools reference](https://code.claude.com/docs/en/tools-reference)
+- 已淘汰项参考：[Backlog.md](https://github.com/MrLesk/Backlog.md) · [kanban-md](https://github.com/antopolskiy/kanban-md) · [vibe-kanban](https://virtuslab.com/blog/ai/vibe-kanban) · [saltbo/agent-kanban](https://github.com/saltbo/agent-kanban) · [Claw-Kanban](https://github.com/GreenSheep01201/Claw-Kanban) · [kanbots](https://github.com/leodavinci1/kanbots)
+
+</script>
+<script src="http://aizen.sun.kuro.com/enhanced-doc.js"></script>
+</body>
+</html>
