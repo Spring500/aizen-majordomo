@@ -24,8 +24,9 @@ playwright-report/
 .idea/
 .vscode/
 
-# docs not committed for now (per project decision 2026-06-05)
-docs/
+# local docs and temporary working notes
+docs/local/
+docs/**/*.bak
 
 # local git worktrees
 .worktrees/
