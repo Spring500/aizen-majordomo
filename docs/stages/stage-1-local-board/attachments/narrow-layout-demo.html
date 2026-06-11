@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>aizen-majordomo 阶段 1 窄屏交互 Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --panel: #ffffff;
+        --panel-soft: #f9fafb;
+        --line: #d9dee5;
+        --line-strong: #bcc5d0;
+        --text: #17202a;
+        --muted: #667385;
+        --quiet: #8a96a8;
+        --green: #237a57;
+        --green-soft: #e7f4ee;
+        --blue: #2c66a0;
+        --blue-soft: #e8f1fb;
+        --yellow: #8a650d;
+        --yellow-soft: #fff3cf;
+        --red: #a63a3a;
+        --red-soft: #fdeaea;
+        --ink: #1f2a37;
+        --shadow: 0 18px 50px rgba(23, 32, 42, 0.2);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: 52px 1fr;
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        display: grid;
+        grid-template-columns: 40px 1fr auto;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        background: #fff;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        min-width: 0;
+      }
+
+      .brand strong {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 15px;
+        font-weight: 760;
+      }
+
+      .brand span,
+      .meta,
+      .save-state {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .topbar-actions {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .button,
+      .icon-button {
+        height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 0 12px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .button.primary {
+        border-color: #1d5f45;
+        background: #1f7a55;
+        color: #fff;
+        font-weight: 680;
+      }
+
+      .icon-button {
+        width: 34px;
+        padding: 0;
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .main {
+        min-width: 0;
+        padding: 14px 12px 24px;
+      }
+
+      .board-header {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 12px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-size: 19px;
+        line-height: 1.2;
+        font-weight: 780;
+      }
+
+      .board-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .active-filter {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .card-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .card-row {
+        width: 100%;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: start;
+        gap: 10px;
+        min-height: 86px;
+        padding: 11px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--text);
+        text-align: left;
+      }
+
+      .card-main {
+        min-width: 0;
+        display: grid;
+        gap: 6px;
+      }
+
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .card-title strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      .card-body {
+        display: -webkit-box;
+        overflow: hidden;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.45;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
+
+      .card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 680;
+        white-space: nowrap;
+      }
+
+      .badge.task {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .badge.decision {
+        background: var(--yellow-soft);
+        color: var(--yellow);
+      }
+
+      .badge.memo {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .chevron {
+        color: var(--quiet);
+        font-size: 20px;
+        line-height: 1;
+      }
+
+      .scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 20;
+        display: none;
+        background: rgba(23, 32, 42, 0.36);
+      }
+
+      .scrim.open {
+        display: block;
+      }
+
+      .drawer,
+      .filter-panel,
+      .dialog {
+        position: fixed;
+        z-index: 30;
+        background: #fff;
+        box-shadow: var(--shadow);
+      }
+
+      .drawer {
+        inset: 0 0 0 auto;
+        width: min(430px, 100vw);
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        transform: translateX(104%);
+        transition: transform 180ms ease;
+      }
+
+      .drawer.open {
+        transform: translateX(0);
+      }
+
+      .filter-panel {
+        inset: 0 auto 0 0;
+        width: min(320px, 88vw);
+        display: grid;
+        grid-template-rows: auto 1fr;
+        transform: translateX(-104%);
+        transition: transform 180ms ease;
+      }
+
+      .filter-panel.open {
+        transform: translateX(0);
+      }
+
+      .drawer-head,
+      .filter-head {
+        display: grid;
+        gap: 12px;
+        padding: 14px 16px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .drawer-kicker,
+      .panel-title,
+      .dialog header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .drawer h2,
+      .dialog h2,
+      .filter-head h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.3;
+      }
+
+      .drawer-body,
+      .filter-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 16px;
+      }
+
+      .drawer-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--line);
+        background: var(--panel-soft);
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        font-weight: 400;
+      }
+
+      .field input,
+      .field select {
+        height: 34px;
+        padding: 0 10px;
+      }
+
+      .field textarea {
+        min-height: 94px;
+        resize: vertical;
+        padding: 9px 10px;
+        line-height: 1.45;
+      }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .option-list,
+      .filter-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .option-row,
+      .filter-item {
+        min-height: 34px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .filter-item {
+        width: 100%;
+      }
+
+      .filter-item.active {
+        border-color: #2a7959;
+        background: #edf8f2;
+      }
+
+      .error-box {
+        padding: 9px 10px;
+        border: 1px solid #efb4b4;
+        border-radius: 6px;
+        background: var(--red-soft);
+        color: var(--red);
+        font-size: 13px;
+      }
+
+      .dialog-wrap {
+        position: fixed;
+        inset: 0;
+        z-index: 40;
+        display: none;
+        place-items: start center;
+        padding: 70px 12px 20px;
+        background: rgba(23, 32, 42, 0.36);
+      }
+
+      .dialog-wrap.open {
+        display: grid;
+      }
+
+      .dialog {
+        position: static;
+        width: min(520px, 100%);
+        max-height: calc(100vh - 92px);
+        display: grid;
+        gap: 16px;
+        overflow: auto;
+        padding: 16px;
+        border-radius: 8px;
+      }
+
+      .dialog footer {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      @media (min-width: 860px) {
+        body::before {
+          content: "把浏览器宽度收窄到 860px 以下查看此 demo 的目标布局";
+          position: fixed;
+          inset: 16px 16px auto auto;
+          z-index: 99;
+          max-width: 320px;
+          padding: 10px 12px;
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          background: #fff;
+          color: var(--muted);
+          box-shadow: var(--shadow);
+          font-size: 13px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <button class="icon-button" type="button" data-open-filter aria-label="筛选">☰</button>
+        <div class="brand">
+          <strong>aizen-majordomo</strong>
+          <span>本地工作台</span>
+        </div>
+        <div class="topbar-actions">
+          <button class="button primary" type="button" data-open-new>新建</button>
+        </div>
+      </header>
+
+      <main class="main">
+        <div class="board-header">
+          <div class="board-title">
+            <h1>本地单人看板</h1>
+            <p>窄屏下保留完整功能：筛选、列表、详情、新建和编辑。</p>
+          </div>
+          <div class="active-filter">
+            <span>当前筛选：全部卡片</span>
+            <button class="button" type="button" data-open-filter>调整</button>
+          </div>
+        </div>
+
+        <section class="card-list" aria-label="卡片列表">
+          <button class="card-row" type="button" data-card="decision">
+            <span class="card-main">
+              <span class="card-title">
+                <span class="badge decision">decision</span>
+                <strong>阶段 1 窄屏详情应该如何呈现</strong>
+              </span>
+              <span class="card-body">详情仍然从右侧进入，保留列表上下文；筛选从左侧进入，和宽屏左栏对位。</span>
+              <span class="card-meta"><span>P1</span><span>human</span><span>default</span></span>
+            </span>
+            <span class="chevron">›</span>
+          </button>
+
+          <button class="card-row" type="button" data-card="task">
+            <span class="card-main">
+              <span class="card-title">
+                <span class="badge task">task</span>
+                <strong>补齐抽屉关闭与遮罩交互</strong>
+              </span>
+              <span class="card-body">选中卡片后详情抽屉覆盖列表；关闭后回到列表，不丢筛选状态。</span>
+              <span class="card-meta"><span>P2</span><span>codex</span><span>default</span></span>
+            </span>
+            <span class="chevron">›</span>
+          </button>
+
+          <button class="card-row" type="button" data-card="memo">
+            <span class="card-main">
+              <span class="card-title">
+                <span class="badge memo">memo</span>
+                <strong>窄屏不是削减版</strong>
+              </span>
+              <span class="card-body">窄屏和宽屏使用同一批能力，只是导航方式从常驻栏变为可呼出面板。</span>
+              <span class="card-meta"><span>P0</span><span>未分配</span><span>default</span></span>
+            </span>
+            <span class="chevron">›</span>
+          </button>
+        </section>
+      </main>
+    </div>
+
+    <div class="scrim" data-scrim></div>
+
+    <aside class="filter-panel" aria-label="筛选面板" data-filter-panel>
+      <div class="filter-head">
+        <div class="panel-title">
+          <h2>筛选</h2>
+          <button class="icon-button" type="button" data-close-filter aria-label="关闭筛选">×</button>
+        </div>
+        <span class="meta">与宽屏左侧栏对位</span>
+      </div>
+      <div class="filter-body">
+        <div class="form-grid">
+          <section class="field">
+            <span>类型</span>
+            <div class="filter-list">
+              <button class="filter-item active" type="button"><span>全部卡片</span><span>3</span></button>
+              <button class="filter-item" type="button"><span>Task</span><span>1</span></button>
+              <button class="filter-item" type="button"><span>Decision</span><span>1</span></button>
+              <button class="filter-item" type="button"><span>Memo</span><span>1</span></button>
+            </div>
+          </section>
+          <section class="field">
+            <span>状态</span>
+            <div class="filter-list">
+              <button class="filter-item active" type="button"><span>default</span><span>3</span></button>
+              <button class="filter-item" type="button"><span>awaiting_human</span><span>0</span></button>
+            </div>
+          </section>
+          <section class="field">
+            <span>负责人</span>
+            <div class="filter-list">
+              <button class="filter-item active" type="button"><span>所有人</span><span>3</span></button>
+              <button class="filter-item" type="button"><span>human</span><span>1</span></button>
+              <button class="filter-item" type="button"><span>codex</span><span>1</span></button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </aside>
+
+    <aside class="drawer" aria-label="卡片详情" data-drawer>
+      <div class="drawer-head">
+        <div class="drawer-kicker">
+          <span class="badge decision" data-detail-type>decision</span>
+          <button class="icon-button" type="button" data-close-drawer aria-label="关闭详情">×</button>
+        </div>
+        <h2 data-detail-title>阶段 1 窄屏详情应该如何呈现</h2>
+        <span class="meta">与宽屏右侧详情栏对位</span>
+      </div>
+      <div class="drawer-body">
+        <div class="form-grid">
+          <label class="field">
+            <span>标题</span>
+            <input data-detail-input-title value="阶段 1 窄屏详情应该如何呈现" />
+          </label>
+          <label class="field">
+            <span>正文</span>
+            <textarea data-detail-body>详情仍然从右侧进入，保留列表上下文；筛选从左侧进入，和宽屏左栏对位。</textarea>
+          </label>
+          <div class="field-row">
+            <label class="field">
+              <span>优先级</span>
+              <input type="number" value="1" />
+            </label>
+            <label class="field">
+              <span>负责人</span>
+              <input value="human" />
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">
+              <span>Lane</span>
+              <input value="default" />
+            </label>
+            <label class="field">
+              <span>Status</span>
+              <input value="default" disabled />
+            </label>
+          </div>
+          <section class="field" data-options>
+            <span>Decision options</span>
+            <div class="option-list">
+              <div class="option-row">右侧详情抽屉</div>
+              <div class="option-row">单独详情页</div>
+            </div>
+          </section>
+        </div>
+      </div>
+      <div class="drawer-foot">
+        <span class="save-state" data-save-state>未保存更改</span>
+        <button class="button primary" type="button" data-save>保存</button>
+      </div>
+    </aside>
+
+    <div class="dialog-wrap" data-dialog-wrap>
+      <section class="dialog" aria-label="新建卡片">
+        <header>
+          <h2>新建卡片</h2>
+          <button class="icon-button" type="button" data-close-new aria-label="关闭新建">×</button>
+        </header>
+        <div class="form-grid">
+          <div class="error-box" data-new-error hidden>标题不能为空</div>
+          <label class="field">
+            <span>类型</span>
+            <select>
+              <option>task</option>
+              <option>decision</option>
+              <option>memo</option>
+            </select>
+          </label>
+          <label class="field">
+            <span>标题</span>
+            <input data-new-title />
+          </label>
+          <label class="field">
+            <span>正文</span>
+            <textarea></textarea>
+          </label>
+        </div>
+        <footer>
+          <button class="button" type="button" data-close-new>取消</button>
+          <button class="button primary" type="button" data-create>创建</button>
+        </footer>
+      </section>
+    </div>
+
+    <script>
+      const data = {
+        decision: {
+          type: "decision",
+          title: "阶段 1 窄屏详情应该如何呈现",
+          body: "详情仍然从右侧进入，保留列表上下文；筛选从左侧进入，和宽屏左栏对位。",
+          options: ["右侧详情抽屉", "单独详情页"],
+        },
+        task: {
+          type: "task",
+          title: "补齐抽屉关闭与遮罩交互",
+          body: "选中卡片后详情抽屉覆盖列表；关闭后回到列表，不丢筛选状态。",
+          options: null,
+        },
+        memo: {
+          type: "memo",
+          title: "窄屏不是削减版",
+          body: "窄屏和宽屏使用同一批能力，只是导航方式从常驻栏变为可呼出面板。",
+          options: null,
+        },
+      };
+
+      const scrim = document.querySelector("[data-scrim]");
+      const drawer = document.querySelector("[data-drawer]");
+      const filterPanel = document.querySelector("[data-filter-panel]");
+      const dialogWrap = document.querySelector("[data-dialog-wrap]");
+      const saveState = document.querySelector("[data-save-state]");
+
+      function setScrim() {
+        const anyOpen =
+          drawer.classList.contains("open") ||
+          filterPanel.classList.contains("open");
+        scrim.classList.toggle("open", anyOpen);
+      }
+
+      function closePanels() {
+        drawer.classList.remove("open");
+        filterPanel.classList.remove("open");
+        setScrim();
+      }
+
+      function openDrawer(card) {
+        const item = data[card];
+        document.querySelector("[data-detail-type]").className = `badge ${item.type}`;
+        document.querySelector("[data-detail-type]").textContent = item.type;
+        document.querySelector("[data-detail-title]").textContent = item.title;
+        document.querySelector("[data-detail-input-title]").value = item.title;
+        document.querySelector("[data-detail-body]").value = item.body;
+        const options = document.querySelector("[data-options]");
+        options.hidden = !item.options;
+        if (item.options) {
+          options.querySelector(".option-list").innerHTML = item.options
+            .map((option) => `<div class="option-row">${option}</div>`)
+            .join("");
+        }
+        saveState.textContent = "未保存更改";
+        filterPanel.classList.remove("open");
+        drawer.classList.add("open");
+        setScrim();
+      }
+
+      document.querySelectorAll("[data-card]").forEach((button) => {
+        button.addEventListener("click", () => openDrawer(button.dataset.card));
+      });
+
+      document.querySelectorAll("[data-open-filter]").forEach((button) => {
+        button.addEventListener("click", () => {
+          drawer.classList.remove("open");
+          filterPanel.classList.add("open");
+          setScrim();
+        });
+      });
+
+      document.querySelector("[data-close-filter]").addEventListener("click", closePanels);
+      document.querySelector("[data-close-drawer]").addEventListener("click", closePanels);
+      scrim.addEventListener("click", closePanels);
+
+      document.querySelector("[data-save]").addEventListener("click", () => {
+        saveState.textContent = "已保存";
+      });
+
+      document.querySelector("[data-open-new]").addEventListener("click", () => {
+        dialogWrap.classList.add("open");
+      });
+
+      document.querySelectorAll("[data-close-new]").forEach((button) => {
+        button.addEventListener("click", () => {
+          dialogWrap.classList.remove("open");
+          document.querySelector("[data-new-error]").hidden = true;
+        });
+      });
+
+      document.querySelector("[data-create]").addEventListener("click", () => {
+        const title = document.querySelector("[data-new-title]");
+        const error = document.querySelector("[data-new-error]");
+        if (!title.value.trim()) {
+          error.hidden = false;
+          return;
+        }
+        error.hidden = true;
+        dialogWrap.classList.remove("open");
+      });
+    </script>
+  </body>
+</html>

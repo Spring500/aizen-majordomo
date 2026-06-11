@@ -1,0 +1,712 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>aizen-majordomo 阶段 1 看板视觉 Demo</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f4f6f8;
+        --panel: #ffffff;
+        --panel-soft: #f9fafb;
+        --line: #d9dee5;
+        --line-strong: #bcc5d0;
+        --text: #17202a;
+        --muted: #667385;
+        --quiet: #8a96a8;
+        --green: #237a57;
+        --green-soft: #e7f4ee;
+        --blue: #2c66a0;
+        --blue-soft: #e8f1fb;
+        --yellow: #8a650d;
+        --yellow-soft: #fff3cf;
+        --red: #a63a3a;
+        --red-soft: #fdeaea;
+        --ink: #1f2a37;
+        --shadow: 0 18px 50px rgba(23, 32, 42, 0.14);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      textarea,
+      select {
+        font: inherit;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: 52px 1fr;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 18px;
+        background: #ffffff;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .brand {
+        min-width: 214px;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .brand strong {
+        font-size: 15px;
+        font-weight: 760;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .search {
+        position: relative;
+        flex: 1;
+        max-width: 520px;
+      }
+
+      .search input {
+        width: 100%;
+        height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0 12px 0 32px;
+        background: var(--panel-soft);
+        color: var(--text);
+      }
+
+      .search span {
+        position: absolute;
+        left: 11px;
+        top: 7px;
+        color: var(--quiet);
+        font-size: 14px;
+      }
+
+      .topbar-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .button {
+        height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 0 12px;
+        background: #fff;
+        color: var(--ink);
+        cursor: default;
+      }
+
+      .button.primary {
+        border-color: #1d5f45;
+        background: #1f7a55;
+        color: #fff;
+        font-weight: 680;
+      }
+
+      .workspace {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 230px minmax(520px, 1fr) 430px;
+      }
+
+      .sidebar {
+        min-height: 0;
+        padding: 16px;
+        background: #eef2f5;
+        border-right: 1px solid var(--line);
+        overflow: auto;
+      }
+
+      .sidebar-section + .sidebar-section {
+        margin-top: 18px;
+      }
+
+      .sidebar h2 {
+        margin: 0 0 9px;
+        font-size: 12px;
+        font-weight: 780;
+        color: var(--muted);
+        text-transform: uppercase;
+      }
+
+      .filter-list {
+        display: grid;
+        gap: 5px;
+      }
+
+      .filter-item {
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border-radius: 6px;
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .filter-item.active {
+        background: #ffffff;
+        box-shadow: inset 0 0 0 1px var(--line);
+      }
+
+      .count {
+        color: var(--quiet);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .main {
+        min-width: 0;
+        min-height: 0;
+        padding: 16px 18px;
+        overflow: auto;
+      }
+
+      .board-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.2;
+        font-weight: 780;
+      }
+
+      .board-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .inline-controls {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .select {
+        height: 32px;
+        min-width: 126px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0 8px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .card-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .card {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 104px 92px;
+        align-items: center;
+        gap: 12px;
+        min-height: 74px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+      }
+
+      .card.selected {
+        border-color: #2a7959;
+        box-shadow: inset 3px 0 0 #2a7959;
+      }
+
+      .card-main {
+        min-width: 0;
+      }
+
+      .card-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        margin-bottom: 4px;
+      }
+
+      .card-title strong {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 14px;
+      }
+
+      .card-body {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 680;
+        white-space: nowrap;
+      }
+
+      .badge.task {
+        background: var(--blue-soft);
+        color: var(--blue);
+      }
+
+      .badge.decision {
+        background: var(--yellow-soft);
+        color: var(--yellow);
+      }
+
+      .badge.memo {
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .badge.error {
+        background: var(--red-soft);
+        color: var(--red);
+      }
+
+      .priority {
+        justify-self: start;
+        min-width: 58px;
+        color: var(--ink);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .assignee {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .drawer {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
+        background: var(--panel);
+        border-left: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+
+      .drawer-head {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .drawer-kicker {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .drawer h2 {
+        margin: 0;
+        font-size: 18px;
+        line-height: 1.3;
+      }
+
+      .drawer-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 16px 18px;
+      }
+
+      .form-grid {
+        display: grid;
+        gap: 14px;
+      }
+
+      .field {
+        display: grid;
+        gap: 6px;
+      }
+
+      .field label {
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .field input,
+      .field textarea,
+      .field select {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+      }
+
+      .field input,
+      .field select {
+        height: 34px;
+        padding: 0 10px;
+      }
+
+      .field textarea {
+        min-height: 94px;
+        resize: vertical;
+        padding: 9px 10px;
+        line-height: 1.45;
+      }
+
+      .field-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .option-list {
+        display: grid;
+        gap: 7px;
+      }
+
+      .option-row {
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 9px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--panel-soft);
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .error-box {
+        padding: 9px 10px;
+        border: 1px solid #efb4b4;
+        border-radius: 6px;
+        background: var(--red-soft);
+        color: var(--red);
+        font-size: 13px;
+      }
+
+      .drawer-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 18px;
+        border-top: 1px solid var(--line);
+        background: var(--panel-soft);
+      }
+
+      .save-state {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .new-card {
+        margin-top: 14px;
+        padding: 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .new-card h3 {
+        margin: 0 0 10px;
+        font-size: 14px;
+      }
+
+      .compact-form {
+        display: grid;
+        gap: 8px;
+      }
+
+      @media (max-width: 1100px) {
+        .workspace {
+          grid-template-columns: 210px minmax(420px, 1fr) 390px;
+        }
+
+        .card {
+          grid-template-columns: 84px minmax(0, 1fr) 84px;
+        }
+
+        .assignee {
+          display: none;
+        }
+      }
+
+      @media (max-width: 860px) {
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          display: none;
+        }
+
+        .drawer {
+          position: fixed;
+          inset: 56px 0 0 auto;
+          width: min(430px, 100vw);
+        }
+
+        .brand span,
+        .inline-controls {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand">
+          <strong>aizen-majordomo</strong>
+          <span>本地工作台</span>
+        </div>
+        <div class="search">
+          <span>⌕</span>
+          <input value="" placeholder="搜索标题、正文或负责人" />
+        </div>
+        <div class="topbar-actions">
+          <button class="button">刷新</button>
+          <button class="button primary">新建卡片</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside class="sidebar" aria-label="筛选">
+          <section class="sidebar-section">
+            <h2>类型</h2>
+            <div class="filter-list">
+              <div class="filter-item active"><span>全部卡片</span><span class="count">12</span></div>
+              <div class="filter-item"><span>Task</span><span class="count">7</span></div>
+              <div class="filter-item"><span>Decision</span><span class="count">3</span></div>
+              <div class="filter-item"><span>Memo</span><span class="count">2</span></div>
+            </div>
+          </section>
+
+          <section class="sidebar-section">
+            <h2>状态</h2>
+            <div class="filter-list">
+              <div class="filter-item active"><span>default</span><span class="count">9</span></div>
+              <div class="filter-item"><span>awaiting_human</span><span class="count">2</span></div>
+              <div class="filter-item"><span>done</span><span class="count">1</span></div>
+            </div>
+          </section>
+
+          <section class="sidebar-section">
+            <h2>负责人</h2>
+            <div class="filter-list">
+              <div class="filter-item active"><span>所有人</span><span class="count">12</span></div>
+              <div class="filter-item"><span>human</span><span class="count">5</span></div>
+              <div class="filter-item"><span>codex</span><span class="count">4</span></div>
+              <div class="filter-item"><span>未分配</span><span class="count">3</span></div>
+            </div>
+          </section>
+
+          <section class="new-card">
+            <h3>快速记录</h3>
+            <div class="compact-form">
+              <select class="select" aria-label="类型">
+                <option>task</option>
+                <option>decision</option>
+                <option>memo</option>
+              </select>
+              <input class="select" value="" placeholder="标题" />
+              <button class="button primary">创建</button>
+            </div>
+          </section>
+        </aside>
+
+        <main class="main">
+          <div class="board-header">
+            <div class="board-title">
+              <h1>本地单人看板</h1>
+              <p>12 张卡片，按创建时间倒序排列。当前筛选：全部。</p>
+            </div>
+            <div class="inline-controls">
+              <select class="select">
+                <option>全部类型</option>
+                <option>task</option>
+                <option>decision</option>
+                <option>memo</option>
+              </select>
+              <select class="select">
+                <option>每页 50</option>
+                <option>全部</option>
+              </select>
+            </div>
+          </div>
+
+          <section class="card-list" aria-label="卡片列表">
+            <article class="card selected">
+              <span class="badge decision">decision</span>
+              <div class="card-main">
+                <div class="card-title">
+                  <strong>阶段 1 前端详情使用抽屉还是独立页面</strong>
+                </div>
+                <div class="card-body">确认本地看板的主工作流，避免进入详情后丢失列表上下文。</div>
+              </div>
+              <span class="priority">P1</span>
+              <span class="assignee">human</span>
+            </article>
+
+            <article class="card">
+              <span class="badge task">task</span>
+              <div class="card-main">
+                <div class="card-title"><strong>补齐 POST /cards 与标题校验</strong></div>
+                <div class="card-body">创建 task、decision、memo，title trim 后不能为空。</div>
+              </div>
+              <span class="priority">P2</span>
+              <span class="assignee">codex</span>
+            </article>
+
+            <article class="card">
+              <span class="badge memo">memo</span>
+              <div class="card-main">
+                <div class="card-title"><strong>本地试用记录：早期不做拖拽</strong></div>
+                <div class="card-body">lane 先作为普通字段编辑，状态流转留到阶段 3。</div>
+              </div>
+              <span class="priority">P3</span>
+              <span class="assignee">未分配</span>
+            </article>
+
+            <article class="card">
+              <span class="badge task">task</span>
+              <div class="card-main">
+                <div class="card-title"><strong>Playwright 覆盖创建与编辑路径</strong></div>
+                <div class="card-body">从空库启动，创建 task，打开抽屉编辑基础字段。</div>
+              </div>
+              <span class="priority">P1</span>
+              <span class="assignee">codex</span>
+            </article>
+
+            <article class="card">
+              <span class="badge error">error</span>
+              <div class="card-main">
+                <div class="card-title"><strong>标题不能为空</strong></div>
+                <div class="card-body">表单错误需要显示在用户正在操作的位置。</div>
+              </div>
+              <span class="priority">P2</span>
+              <span class="assignee">human</span>
+            </article>
+          </section>
+        </main>
+
+        <aside class="drawer" aria-label="卡片详情">
+          <div class="drawer-head">
+            <div class="drawer-kicker">
+              <span class="badge decision">decision</span>
+              <span class="meta">created by agent · updated 2 min ago</span>
+            </div>
+            <h2>阶段 1 前端详情使用抽屉还是独立页面</h2>
+          </div>
+
+          <div class="drawer-body">
+            <div class="form-grid">
+              <div class="field">
+                <label for="title">标题</label>
+                <input id="title" value="阶段 1 前端详情使用抽屉还是独立页面" />
+              </div>
+
+              <div class="field">
+                <label for="body">正文</label>
+                <textarea id="body">确认本地看板的主工作流。右侧抽屉可以保留列表上下文，适合快速记录、查看和编辑。</textarea>
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="priority">优先级</label>
+                  <select id="priority">
+                    <option>P1</option>
+                    <option>P2</option>
+                    <option>P3</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label for="assignee">负责人</label>
+                  <input id="assignee" value="human" />
+                </div>
+              </div>
+
+              <div class="field-row">
+                <div class="field">
+                  <label for="lane">Lane</label>
+                  <input id="lane" value="default" />
+                </div>
+                <div class="field">
+                  <label for="status">Status</label>
+                  <input id="status" value="default" disabled />
+                </div>
+              </div>
+
+              <div class="field">
+                <label>Decision options</label>
+                <div class="option-list">
+                  <div class="option-row">右侧抽屉面板</div>
+                  <div class="option-row">单独详情页路由</div>
+                </div>
+              </div>
+
+              <div class="error-box">标题不能为空。请填写一个能说明事项的标题。</div>
+            </div>
+          </div>
+
+          <div class="drawer-foot">
+            <span class="save-state">本 demo 为静态视觉稿，按钮不提交数据。</span>
+            <div class="topbar-actions">
+              <button class="button">取消</button>
+              <button class="button primary">保存</button>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>
