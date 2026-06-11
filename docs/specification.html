@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body>
+<script type="text/x-markdown">
+
+# aizen_majordomo 规格说明
+
+`2026-06-04` · v0.1 · 草案
+
+> **定位**：一个自托管的本地看板系统，同时服务两类用户——
+> - **人类**：用作个人事务备忘，以及对 agent 的指挥/审批界面；
+> - **任意 AI agent**：用作任务协作，以及向人类发起异步确认（决策卡）的信道。
+
+---
+
+## 1. 概述
+
+aizen_majordomo 是一块所有参与方共享的看板。人类与若干 AI agent 围绕同一批卡片协作：agent 认领任务、汇报进度、在需要人类拍板时建一张"决策卡"并等待；人类记录自己的事务、回复决策卡并推动状态流转。系统通过双向 hook 把"卡片状态变更"与"外部世界"打通，并通过令牌与密码登录两套机制管控权限。
+
+**核心特性**
+
+- 三种卡片：任务（task）、决策（decision）、备忘（memo）。
+- 双向 Hook：出站（状态变更触发通知/脚本）+ 入站（人类回复后 agent 可感知并恢复）。
+- 等待-恢复：决策卡支持长延迟（小时/跨夜），等待逻辑不绑定特定 agent。
+- 令牌权限：所有 agent 通过带令牌的 HTTP API 访问；令牌携带受限权限集。
+- 自托管：服务与数据都在本机，数据不出网。
+
+---
+
+## 2. 角色与核心概念
+
+| 概念 | 说明 |
+|---|---|
+| **人类用户** | 交互式使用者，通过**密码登录**获得会话，可执行全部操作（含删除、令牌管理、hook 管理）。 |
+| **Agent** | 非交互程序，通过 **HTTP API + 令牌**访问，权限受令牌携带的范围（scope）限制。 |
+| **卡片（card）** | 看板基本单元，分 task / decision / memo 三型。 |
+| **决策卡（decision）** | agent 对人类的一次**异步 RPC**：发起 → 等待 → 人类答复 → agent 回灌 → 恢复。 |
+| **变更流（changes）** | 所有字段变更的有序日志，支撑 agent 的增量拉取（入站回灌的核心）。 |
+| **Hook** | 在指定事件（如状态变更）上触发的动作（webhook / 本地脚本）。 |
+| **令牌（token）** | 发给 agent 的访问凭据，详见第 6 章。 |
+| **会话（session）** | 人类密码登录后建立的登录态，以 Cookie 维持，详见第 6 章。 |
+
+---
+
+## 3. 需求
+
+### 3.1 功能需求
+
+- 创建/查询/更新卡片；决策卡可由人类回复。
+- 卡片间评论（支持多轮讨论）。
+- 增量变更查询 `changes?since=...`，供 agent 轮询。
+- 状态变更触发出站 hook（webhook / 脚本）。
+- 人类通过界面管理：卡片、令牌、hook、自身登录。
+
+### 3.2 非功能需求
+
+| 需求 | 指标 |
+|---|---|
+| 写入原子性 | 并发读写不撕裂、不丢更新（依赖 SQLite 事务） |
+| 自托管 | 服务与数据均在本机，数据不外泄（出站通知为主动配置项除外） |
+| Agent 无关 | 任意 agent 经通用 HTTP API 接入，不依赖特定厂商运行时 |
+| 长延迟容忍 | 决策卡可等待数小时至跨夜 |
+| 权限可控 | 令牌粒度授权；危险操作（删除、管理）需密码会话 |
+
+### 3.3 非目标
+
+- ❌ 多 agent 自动编排 / DAG 工作流引擎
+- ❌ 成本监控、团队 SSO、复杂报表
+- ❌ 云端多租户 / 第三方托管
+
+---
+
+## 4. 卡片类型与状态机
+
+### 4.1 卡片类型
+
+| 类型 | 主要发起方 | 用途 | 特有字段 |
+|---|---|---|---|
+| task | 人或 agent | 待办事项、agent 工作项 | 负责人、优先级 |
+| decision | 通常 agent | 向人类要确认/选型/授权 | 选项、人类回复 |
+| memo | 人类 | 个人事务、随手记 | —— |
+
+### 4.2 状态机
+
+:::mermaid
+stateDiagram-v2
+    [*] --> open
+    open --> in_progress: 认领/开始
+    in_progress --> done: 完成
+    open --> awaiting_human: decision 卡发起,等人回
+    awaiting_human --> answered: 人类回复+改状态
+    answered --> in_progress: agent 读回回复,恢复
+    in_progress --> awaiting_human: 再次需要确认
+    done --> [*]
+:::
+
+图 1：**默认工作流示例**。注意——状态数量与流转关系**均可自定义**（见 6.7），上图只是开箱默认。task 与 decision 共用一套状态；decision 多了 awaiting_human / answered 两态。
+
+---
+
+## 5. 架构
+
+### 5.1 组件
+
+:::mermaid
+flowchart TB
+  subgraph Local[本机 自托管]
+    UI[网页前端<br/>人类:看板/备忘/回复/审批/管理]
+    API[HTTP API 服务]
+    DB[(SQLite<br/>WAL,事务=原子性)]
+    HK[Hook 运行器<br/>状态变更→webhook/脚本]
+    UI <-->|REST+Cookie 会话| API
+    API <-->|事务读写| DB
+    API -->|状态变更事件| HK
+  end
+  MCP[可选 MCP 包装层] -->|调用| API
+  AG[任意 Agent] -->|HTTP + Bearer 令牌| API
+  AG -->|轮询 changes| API
+  HK -->|出站通知| EXT[IM/桌面/自定义脚本]
+:::
+
+图 2：MVP 架构。
+
+### 5.2 数据模型（SQLite，草案）
+
+```sql
+-- 卡片
+CREATE TABLE cards (
+  id          TEXT PRIMARY KEY,         -- uuid
+  type        TEXT NOT NULL,            -- task | decision | memo
+  title       TEXT NOT NULL,
+  body        TEXT,                     -- 正文/问题描述
+  options     TEXT,                     -- decision 的可选项(JSON)
+  status      TEXT NOT NULL,            -- 见状态机
+  lane        TEXT,                     -- 看板列(可自定义)
+  priority    INTEGER DEFAULT 0,
+  created_by  TEXT NOT NULL,            -- 'human' 或 agent 标识
+  assignee    TEXT,
+  reply       TEXT,                     -- 人类对 decision 的回复
+  replied_by  TEXT,
+  created_at  INTEGER NOT NULL,         -- epoch ms
+  updated_at  INTEGER NOT NULL
+);
+
+-- 评论/讨论线
+CREATE TABLE comments (
+  id        TEXT PRIMARY KEY,
+  card_id   TEXT NOT NULL REFERENCES cards(id),
+  author    TEXT NOT NULL,
+  content   TEXT NOT NULL,
+  created_at INTEGER NOT NULL
+);
+
+-- 变更流(支撑 changes?since= 增量拉取)
+CREATE TABLE changes (
+  seq       INTEGER PRIMARY KEY AUTOINCREMENT,
+  card_id   TEXT NOT NULL,
+  field     TEXT,
+  old_value TEXT,
+  new_value TEXT,
+  actor     TEXT,
+  at        INTEGER NOT NULL
+);
+
+-- hook 配置
+CREATE TABLE hooks (
+  id        TEXT PRIMARY KEY,
+  event     TEXT NOT NULL,             -- card.created / status.changed / decision.answered ...
+  match     TEXT,                      -- 过滤条件(JSON)
+  action    TEXT NOT NULL,             -- webhook | script
+  target    TEXT NOT NULL,             -- url 或 脚本路径
+  enabled   INTEGER DEFAULT 1
+);
+
+-- 看板状态(可自定义数量)
+CREATE TABLE statuses (
+  id        TEXT PRIMARY KEY,          -- 'in_progress'
+  name      TEXT NOT NULL,             -- 显示名 '进行中'
+  category  TEXT,                      -- todo | active | done(语义分组/收尾判定)
+  position  INTEGER NOT NULL,          -- 看板列顺序
+  color     TEXT
+);
+
+-- 流转(状态间的单向连线,构成工作流图)
+CREATE TABLE transitions (
+  id          TEXT PRIMARY KEY,        -- 'answer'
+  name        TEXT,                    -- '答复'
+  from_status TEXT,                    -- NULL/'*' = 全局流转(任意来源)
+  to_status   TEXT NOT NULL,
+  card_type   TEXT                     -- NULL = 适用所有卡片类型
+);
+
+-- 角色(权限的集合;先定义角色,再把令牌指派给角色)
+CREATE TABLE roles (
+  id                  TEXT PRIMARY KEY,   -- 'agent_worker'
+  name                TEXT NOT NULL,      -- '工作 agent'
+  scopes              TEXT NOT NULL,      -- 动作权限(JSON 数组)
+  allowed_transitions TEXT NOT NULL,      -- 流转权限(JSON),或 ["*"]
+  description         TEXT
+);
+
+-- 令牌(发给 agent 的访问凭据;权限来自所属角色)
+CREATE TABLE tokens (
+  id           TEXT PRIMARY KEY,
+  name         TEXT NOT NULL,            -- 人类可读标识,如 "claude-code-dev"
+  secret_hash  TEXT NOT NULL,            -- 只存哈希,明文仅创建时返回一次
+  role_id      TEXT NOT NULL REFERENCES roles(id),  -- 令牌的权限 = 该角色的权限
+  enabled      INTEGER DEFAULT 1,
+  created_at   INTEGER NOT NULL,
+  last_used_at INTEGER
+);
+
+-- 人类登录会话
+CREATE TABLE sessions (
+  id          TEXT PRIMARY KEY,        -- 随机串,作为 Cookie 值(建议存哈希)
+  created_at  INTEGER NOT NULL,
+  expires_at  INTEGER NOT NULL
+);
+
+-- 全局设置(含 admin 密码哈希)
+CREATE TABLE settings (
+  key   TEXT PRIMARY KEY,             -- 如 admin_password_hash
+  value TEXT NOT NULL
+);
+```
+
+---
+
+## 6. 权限与认证（核心设计）
+
+### 6.1 为什么需要两套认证
+
+系统有两类访问者，使用模式完全不同，因此用两套机制：
+
+| 访问者 | 模式 | 认证方式 | 凭据载体 |
+|---|---|---|---|
+| **人类** | 交互式（坐在浏览器前） | **密码登录 → 会话** | **Cookie** |
+| **Agent** | 非交互（程序自动调） | **令牌（token）** | HTTP 头 `Authorization: Bearer <令牌>` |
+
+### 6.2 什么是"令牌（token）"
+
+!!! Note 令牌 = 发给程序的"凭据字符串"
+    令牌本质是一串随机密文（如 `mjd_8f3a...c91`），作用类似密码，但**是发给程序（agent）而不是人**的。区别在于：
+    - **密码**：给人交互式登录用，一个账号通常一个。
+    - **令牌**：给程序非交互访问用，可以**单独签发多个、各自携带不同权限、可单独吊销**，且不需要每次输入。
+
+    agent 调用 API 时，把令牌放进 HTTP 请求头：`Authorization: Bearer <令牌>`。服务端据此 ①识别是哪个调用方 ②查出该令牌被授予了哪些权限（scope），从而决定放行或拒绝。
+
+> 我之前提的"管理 token / admin token"指的就是带管理权限的令牌——但按你的要求，**管理操作改为只走密码会话，不再用令牌**（见 6.5），表述更清晰也更安全。
+
+### 6.3 角色与权限（RBAC）
+
+为便于管理，权限**不直接挂在令牌上**，而是两步：
+
+1. 定义**角色（role）**——角色携带一组权限（动作权限 + 流转权限）。
+2. 把**令牌指派给某个角色**——令牌的权限 = 它所属角色的权限。
+
+好处：新增一个 agent 只需发一个令牌并选角色；要调整一类 agent 的权限，**改角色一处**即可，该角色下所有令牌一起生效。人类密码会话等价于内置 `admin` 角色，拥有全部权限。
+
+角色携带的权限分两层：
+
+**① 动作权限（scopes）——能做哪类操作**
+
+| Scope | 含义 | 默认给 agent 角色? |
+|---|---|---|
+| `card:create` | 建卡 | ✅ |
+| `card:read` | 读卡/列卡 | ✅ |
+| `card:edit` | 改卡的**非状态字段**（标题/正文/优先级等） | ✅ |
+| `comment:create` | 加评论 | ✅ |
+| `changes:read` | 读增量变更 | ✅ |
+| `card:delete` | 删卡 | ❌ **不给** |
+| `status:manage` | 管理状态/流转定义 | ❌ 仅 admin |
+| `role:manage` | 管理角色 | ❌ 仅 admin |
+| `hook:manage` | 管理 hook | ❌ 仅 admin |
+| `token:manage` | 管理令牌 | ❌ 仅 admin |
+
+> 注意：**改卡片状态不属于 `card:edit`**，它走"流转"这条独立通道（见 ②），由流转权限管控。
+
+**② 流转权限（allowed_transitions）——能执行哪些状态流转**
+
+角色持有一份"允许执行的流转 id 列表"（或 `["*"]` 表示全部）。执行一次状态变更 = 执行一条流转，服务端校验**令牌所属角色**的 allowed_transitions 是否包含这条流转。详见 6.7。
+
+!!! Warning "禁止 AI 删库" 与 "限制 AI 乱改状态" 如何落实
+    - **删除**：agent 角色不含 `card:delete`，且删除端点只接受人类会话 → AI 删不掉。
+    - **状态**：agent 角色的 allowed_transitions 只含被授予的流转 → AI 只能走你许可的状态路径（例如不许 agent 自行把卡标记为 `answered` 或 `done`）。
+
+### 6.4 人类登录与会话（Cookie）
+
+是的——人类侧需要登录态，标准做法就是**密码登录 + 会话 Cookie**：
+
+:::mermaid
+sequenceDiagram
+    participant H as 人类(浏览器)
+    participant S as aizen_majordomo
+    H->>S: POST /login {password}
+    S->>S: 用 admin_password_hash 校验密码
+    S->>S: 建一条 session,记到 sessions 表
+    S-->>H: 下发会话 Cookie(HttpOnly,SameSite=Strict)
+    H->>S: 后续请求自动带 Cookie
+    S->>S: 查 session 是否有效/未过期
+    S-->>H: 放行(管理类操作)
+:::
+
+图 3：人类登录流程。
+
+**设计要点**
+
+- Cookie 属性：`HttpOnly`（JS 读不到，防 XSS 窃取）、`SameSite=Strict`、若走 HTTPS 再加 `Secure`。本机 HTTP 下 Secure 可暂缓。
+- 会话存表（`sessions`），可设过期与主动登出（删除会话行）——比无状态 JWT 更易吊销。
+- 首次启动需设定 admin 密码，只存其哈希（argon2 / bcrypt / scrypt），绝不存明文。
+
+### 6.5 令牌管理（密码保护）
+
+令牌的"增删改"只对**已登录的人类会话**开放：
+
+- **创建**：起个名、勾选 scopes → 服务端生成随机明文令牌，**仅此一次返回**给人类复制，库里只存哈希。
+- **列出 / 吊销 / 启停 / 改 scope**：均需有效会话 Cookie。
+- agent 自身**无法**管理令牌（无对应端点权限）。
+
+:::mermaid
+sequenceDiagram
+    participant A as Agent
+    participant S as aizen_majordomo
+    A->>S: POST /cards (Authorization: Bearer 令牌)
+    S->>S: 令牌→角色→scopes,含 card:create?
+    S-->>A: 201 Created
+    A->>S: DELETE /cards/{id} (Bearer 令牌)
+    S->>S: 角色无 card:delete
+    S-->>A: 403 Forbidden
+:::
+
+图 4：令牌按 scope 放行/拒绝，删除被拦。
+
+### 6.6 密钥存储
+
+- admin 密码：只存哈希（argon2/bcrypt/scrypt）。
+- 令牌明文：只在创建时返回一次，库里只存哈希；校验时哈希比对。
+- 会话 id：建议库里存哈希，Cookie 持明文。
+
+### 6.7 自定义状态与流转权限（借鉴 Jira 工作流模型）
+
+本节是细粒度权限的核心。设计参照业界标杆 **Jira 工作流**，并把其"角色"换成"令牌"。
+
+**Jira 三层模型与本系统的映射**
+
+| Jira 概念 | 作用 | 本系统对应 |
+|---|---|---|
+| Status（可自定义） | 卡片所处状态 | `statuses` 表，数量/名称/顺序自定义 |
+| Transition（单向连线） | 状态间合法路径 | `transitions` 表，构成工作流图 |
+| Condition / Restriction | **谁能执行该流转** | **角色的 `allowed_transitions`**（令牌指派角色） |
+| Validator | 流转前校验输入 | （可选/未来）流转校验规则 |
+| Post function | 流转后自动动作 | **现有出站 Hook**（在流转事件上触发） |
+
+> 业界现状：这种"流转级权限"是 Jira / Azure DevOps 企业配置的招牌；Linear / Asana / ClickUp / Trello 多数只做"自定义状态/列"，不做"谁能从 X 到 Y"。我们取 Jira 的强度、去其臃肿。
+
+**配置形态**
+
+① **状态**（人类可增删改、调顺序）：
+
+```json
+[
+  {"id":"todo",          "name":"待办",   "category":"todo",   "position":0},
+  {"id":"in_progress",   "name":"进行中", "category":"active", "position":1},
+  {"id":"awaiting_human","name":"待人类", "category":"active", "position":2},
+  {"id":"answered",      "name":"已答复", "category":"active", "position":3},
+  {"id":"done",          "name":"完成",   "category":"done",   "position":4}
+]
+```
+
+② **流转**（定义合法路径；`from` 为 `"*"` 即全局流转）：
+
+```json
+[
+  {"id":"start",  "from":"todo",          "to":"in_progress"},
+  {"id":"ask",    "from":"in_progress",   "to":"awaiting_human"},
+  {"id":"answer", "from":"awaiting_human","to":"answered"},
+  {"id":"resume", "from":"answered",      "to":"in_progress"},
+  {"id":"finish", "from":"in_progress",   "to":"done"}
+]
+```
+
+③ **先定义角色**（携带动作权限 + 流转权限）：
+
+```json
+{
+  "id": "agent_worker",
+  "name": "工作 agent",
+  "scopes": ["card:create","card:read","card:edit","comment:create","changes:read"],
+  "allowed_transitions": ["start","ask","resume","finish"]
+}
+```
+
+④ **再把令牌指派给角色**：
+
+```json
+{
+  "name": "claude-code-dev",
+  "role_id": "agent_worker"
+}
+```
+
+!!! Tip 上例的关键
+    `agent_worker` 角色里 `answer`（待人类 → 已答复）**没给**——只有人类会话（admin 角色）能执行。于是该角色的所有令牌都能发起提问（`ask`）、被答复后恢复（`resume`），但**不能替人类自己点"已答复"**，也不能跳过流程直接 `done`（若未授予 `finish` 亦然）。要改这类 agent 的权限，**改 `agent_worker` 角色一处**即可，无需逐个动令牌。
+
+**配置界面建议**
+
+- 工作流编辑：一份**状态列表**（拖拽排序）+ 一个**流转矩阵**（行=from、列=to，勾选某格即生成一条流转）。
+- 令牌编辑：列出全部流转，**勾选**该令牌允许的子集；另勾选动作 scopes。
+
+**执行流转的校验顺序**（运行时）
+
+:::mermaid
+flowchart TD
+  R[请求:对卡片执行流转 T] --> A{令牌/会话有效?}
+  A -->|否| E1[401]
+  A -->|是| B{角色含流转 T?}
+  B -->|否| E2[403 无此流转权限]
+  B -->|是| C{卡片当前状态 == T.from<br/>或 T 为全局?}
+  C -->|否| E3[409 非法流转]
+  C -->|是| D[改状态→T.to,写 changes,触发 hook,返回 200]
+:::
+
+图 6：一次状态变更的鉴权与校验链。
+
+---
+
+## 7. API 规格
+
+### 7.1 通用约定
+
+- **认证**：agent 用请求头 `Authorization: Bearer <令牌>`；人类用登录后服务端下发的会话 Cookie。下文"认证"一栏标注所需权限：`scope 名` = 令牌所属角色须含该 scope（会话恒满足）；`流转权` = 角色的 allowed_transitions 须含该流转；`仅会话` = 只接受人类登录会话，令牌一律拒绝。
+- **请求/响应体**：均为 JSON（`Content-Type: application/json`）。
+- **时间**：epoch 毫秒（整数）。
+- **统一错误体**：所有错误返回 `{ "error": { "code": "...", "message": "..." } }`，配合下列 HTTP 状态码。
+
+| 状态码 | 含义 |
+|---|---|
+| 200 / 201 / 204 | 成功 / 已创建 / 成功无返回体 |
+| 400 `BAD_REQUEST` | 参数缺失或非法 |
+| 401 `UNAUTHENTICATED` | 未带令牌/会话，或已失效 |
+| 403 `FORBIDDEN` | 已认证但权限不足（含 `FORBIDDEN_TRANSITION`） |
+| 404 `NOT_FOUND` | 资源不存在 |
+| 409 `CONFLICT` | 状态冲突（含 `ILLEGAL_TRANSITION`） |
+| 422 `VALIDATION_FAILED` | 流转校验未通过（预留） |
+
+### 7.2 端点总览
+
+| 方法 | 路径 | 认证 | 说明 |
+|---|---|---|---|
+| POST | `/login` | 公开 | 密码登录，置会话 Cookie |
+| POST | `/logout` | 会话 | 销毁会话 |
+| POST | `/cards` | `card:create` | 建卡 |
+| GET | `/cards` | `card:read` | 列卡（带过滤） |
+| GET | `/cards/{id}` | `card:read` | 取单卡 |
+| PATCH | `/cards/{id}` | `card:edit` | 改非状态字段 |
+| POST | `/cards/{id}/transition` | 流转权 | 执行状态流转（唯一改状态入口） |
+| POST | `/cards/{id}/reply` | 流转权/会话 | 人类回复决策卡（reply + answer 流转的封装） |
+| POST | `/cards/{id}/comments` | `comment:create` | 加评论 |
+| GET | `/changes` | `changes:read` | 增量拉变更 |
+| GET | `/stream` | `changes:read` | 可选：SSE/WebSocket 推送 |
+| DELETE | `/cards/{id}` | 仅会话 | 删卡 |
+| CRUD | `/statuses` · `/transitions` | 仅会话 | 自定义状态与工作流 |
+| CRUD | `/roles` | 仅会话 | 角色与权限 |
+| GET/POST/DELETE | `/tokens` | 仅会话 | 令牌（建时指派角色） |
+| CRUD | `/hooks` | 仅会话 | hook |
+
+### 7.3 逐端点详解
+
+#### 7.3.1 建卡 `POST /cards`
+
+- **认证**：`card:create`
+- **请求体**：`type`、`title` 必填；`options` 仅 decision 用；`status` 可选（须为合法初始状态，省略则取工作流默认初始状态）。
+
+```json
+{
+  "type": "decision",
+  "title": "推送通道用 SSE 还是 WebSocket?",
+  "body": "需你拍板",
+  "options": ["SSE", "WebSocket", "先只轮询"],
+  "lane": "待讨论",
+  "priority": 1
+}
+```
+
+- **成功 201**：返回完整卡片。
+
+```json
+{
+  "id": "card_01H9X...",
+  "type": "decision",
+  "title": "推送通道用 SSE 还是 WebSocket?",
+  "body": "需你拍板",
+  "options": ["SSE", "WebSocket", "先只轮询"],
+  "status": "todo",
+  "lane": "待讨论",
+  "priority": 1,
+  "created_by": "claude-code-dev",
+  "assignee": null,
+  "reply": null,
+  "created_at": 1749038400000,
+  "updated_at": 1749038400000
+}
+```
+
+- **错误**：400（缺 type/title 或 type 非法）、401、403。
+
+#### 7.3.2 列卡 `GET /cards`
+
+- **认证**：`card:read`
+- **查询参数**（均可选，组合为 AND）：`type`、`status`、`lane`、`assignee`、`limit`（默认 50）、`offset`（默认 0）。
+- **示例**：`GET /cards?type=decision&status=awaiting_human&limit=20`
+- **成功 200**：
+
+```json
+{ "cards": [ { "id": "card_01H9X...", "status": "awaiting_human" } ], "total": 1 }
+```
+
+#### 7.3.3 取单卡 `GET /cards/{id}`
+
+- **认证**：`card:read`；**成功 200**：完整卡片对象（同 7.3.1）；**错误**：404。
+
+#### 7.3.4 改非状态字段 `PATCH /cards/{id}`
+
+- **认证**：`card:edit`
+- **请求体**：仅允许 `title` / `body` / `priority` / `lane` / `assignee` 的子集；**不接受 `status`**。
+
+```json
+{ "title": "新标题", "priority": 2 }
+```
+
+- **成功 200**：更新后的卡片。
+- **错误**：400（请求里含 `status` → 提示改用 `/transition`）、403、404。
+
+#### 7.3.5 执行状态流转 `POST /cards/{id}/transition`
+
+> 这是唯一能改状态的入口。**用流转 id 指定走哪条流转，目标状态已写在流转定义里，无需另传。**
+
+- **认证**：角色的 allowed_transitions 须含该流转。
+- **请求体**：`transition` 必填（流转 id）；`comment` 可选（顺带记一条评论）；`fields` 可选（随流转写入的字段，如 `reply`）。
+
+```json
+{
+  "transition": "ask",
+  "comment": "需要人类确认推送方案"
+}
+```
+
+- **成功 200**：返回变更后的卡片要点 + 本次变更记录（`change.seq` 可用于 `/changes` 对齐）。
+
+```json
+{
+  "card": { "id": "card_01H9X...", "status": "awaiting_human", "updated_at": 1749038460000 },
+  "change": { "seq": 142, "field": "status", "from": "in_progress", "to": "awaiting_human" }
+}
+```
+
+- **错误**：
+
+| 状态码 | code | 触发场景 |
+|---|---|---|
+| 401 | `UNAUTHENTICATED` | 未带令牌/会话或失效 |
+| 403 | `FORBIDDEN_TRANSITION` | 角色未被授予该流转 |
+| 404 | `NOT_FOUND` | 卡片或流转不存在 |
+| 409 | `ILLEGAL_TRANSITION` | 卡片当前状态 ≠ 流转 `from`（且流转非全局） |
+| 422 | `VALIDATION_FAILED` | 流转校验未通过（预留） |
+
+```json
+{ "error": { "code": "ILLEGAL_TRANSITION", "message": "卡片当前 done,流转 ask 需 from=in_progress" } }
+```
+
+#### 7.3.6 人类回复决策卡 `POST /cards/{id}/reply`
+
+- **认证**：仅会话（或被授予 `answer` 流转的角色）。
+- **说明**：是"写 `reply` 字段 + 执行 `answer` 流转"的便捷封装。
+- **请求体**：`reply` 必填；`transition` 可选（默认 `answer`）。
+
+```json
+{ "reply": "选 SSE，够用且实现简单" }
+```
+
+- **成功 200**：同 7.3.5 的 `{ card, change }`。**错误**：403、404、409。
+
+#### 7.3.7 加评论 `POST /cards/{id}/comments`
+
+- **认证**：`comment:create`；**请求体**：`{ "content": "..." }`；**成功 201**：评论对象 `{ id, card_id, author, content, created_at }`。
+
+#### 7.3.8 增量拉变更 `GET /changes`（入站回灌核心）
+
+- **认证**：`changes:read`
+- **查询参数**：`since`（上次拿到的 `last_seq`，不传=从头）、`limit`（默认 100）。
+- **示例**：`GET /changes?since=141`
+- **成功 200**：
+
+```json
+{
+  "changes": [
+    { "seq": 142, "card_id": "card_01H9X...", "field": "status", "old_value": "in_progress", "new_value": "awaiting_human", "actor": "claude-code-dev", "at": 1749038460000 },
+    { "seq": 143, "card_id": "card_01H9X...", "field": "reply", "old_value": null, "new_value": "选 SSE", "actor": "human", "at": 1749050000000 }
+  ],
+  "last_seq": 143
+}
+```
+
+- **用法**：agent 记住返回的 `last_seq`，下次作为 `since` 带上，即只取新变更——这就是"等待-恢复"里 agent 感知人类答复的方式。
+
+#### 7.3.9 管理类端点（仅会话）
+
+均要求人类登录会话。请求/响应字段对应第 5.2 节各表。
+
+- **`/statuses`**：`GET` 列出；`POST` 建 `{ id, name, category, position, color? }`；`PATCH /statuses/{id}` 改；`DELETE /statuses/{id}` 删。
+- **`/transitions`**：`POST` 建 `{ id, name?, from_status("*"=全局), to_status, card_type? }`；其余同上。
+- **`/roles`**：`POST` 建 `{ id, name, scopes:[...], allowed_transitions:[...], description? }`；其余同上。
+- **`/hooks`**：`POST` 建 `{ event, match?, action:"webhook"|"script", target, enabled? }`；其余同上。
+- **`/tokens`**：
+  - `GET` 列出（**不含**明文与哈希）。
+  - `POST` 建：请求 `{ "name": "claude-code-dev", "role_id": "agent_worker" }`，**成功 201 时明文令牌仅此一次返回**：
+
+```json
+{ "id": "tok_01H9Y...", "name": "claude-code-dev", "role_id": "agent_worker", "token": "mjd_8f3a...c91" }
+```
+
+  - `DELETE /tokens/{id}` 吊销。
+
+---
+
+## 8. agent 侧"等待-恢复"流程
+
+:::mermaid
+sequenceDiagram
+    participant A as Agent
+    participant K as aizen_majordomo
+    participant H as 人类
+    A->>K: POST /cards (decision, awaiting_human)
+    K-->>H: 出站 hook 通知"有卡待定"
+    loop 直到答复(各 agent 自选节奏)
+        A->>K: GET /changes?since=N
+        K-->>A: (暂无)
+    end
+    H->>K: POST /cards/{id}/reply + 改 answered
+    A->>K: GET /changes?since=N
+    K-->>A: card answered, reply=...
+    A->>A: 读回 reply,恢复运行
+:::
+
+图 5：决策卡的发起—等待—回灌闭环。等待节奏由各 agent 自定（如 Claude Code 用定时轮询），看板只负责存储与提供 changes/推送。
+
+---
+
+## 9. 技术选型（已定）
+
+| 项 | 选定 | 理由 |
+|---|---|---|
+| 运行时 | **Node.js（TypeScript）** | 单文件易自托管；TS 生态 |
+| 存储 | **SQLite（WAL）** | 事务=原子性，零外部依赖 |
+| 后端框架 | **Hono** | 体积最小、TS 优先、上手简单；配 `zod` 做请求体校验 |
+| 前端框架 | **React** | 生态最厚、库最全、agent 训练语料最多→协作生成最稳；拖拽用 dnd-kit |
+| 密码哈希 | **argon2id**（经 `@node-rs/argon2`，预编译免构建坑） | OWASP 首选、内存-hard；scrypt（Node 内置）为零依赖备选 |
+| MCP | 可选，后期再包 | 先做扎实 HTTP API，MCP 仅作可选糖 |
+
+> 说明：选 React 而非 Svelte/Solid，是综合"生态成熟度 + 拖拽库丰富 + agent 协作生成可靠性"——性能差距对单人自托管看板不构成瓶颈。密码哈希默认 argon2id；如需改 scrypt（零第三方依赖）可随时切换。
+
+</script>
+<script src="http://aizen.sun.kuro.com/enhanced-doc.js"></script>
+</body>
+</html>
