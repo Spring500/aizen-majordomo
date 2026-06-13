@@ -221,7 +221,7 @@
 | task 字段和动作 | 通用字段、编辑、评论、流转 | 支撑普通事项从创建到完成的演示。 |
 | decision 字段和动作 | 通用字段、`options`、`reply`、`replied_by`、`reply` 动作 | 支撑阶段 3 的人机回复闭环。 |
 | memo 字段和动作 | `title`、`body`、评论、流转 | 支撑备忘记录和协作上下文演示。 |
-| 扩展验收字段 | 至少一个阶段 1 之外的字段，例如 `due_at` | 验证新增配置字段能被读取、写入、编辑和过滤，而不是只覆盖旧固定字段。 |
+| 扩展验收字段 | 至少一个阶段 1 之外且支持基础过滤的字段，例如 `risk_level` | 验证新增配置字段能被读取、写入、编辑和过滤，而不是只覆盖旧固定字段。 |
 | 状态 | `default`、`active`、`waiting`、`resolved`、`done` | 支撑阶段 4 的配置化流转验收。 |
 | 流转 | `start`、`request_reply`、`submit_reply`、`complete` | 覆盖普通卡片推进、decision 等待回复、提交回复和完成。 |
 | hook 动作模型 | `transition`、`webhook`、`script` | 支撑阶段 8 的 hook 执行能力设计；阶段 2 只验证配置表达，不执行 hook。 |
