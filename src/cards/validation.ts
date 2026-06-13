@@ -1,38 +1,15 @@
-import { z } from 'zod';
-import { CARD_TYPES, DEFAULT_LIMIT, MAX_LIMIT } from './types.ts';
+import { DEFAULT_LIMIT, FLAT_FIELD_IDS, MAX_LIMIT } from './types.ts';
 
-const titleSchema = z
-  .string({ required_error: '标题不能为空', invalid_type_error: '标题不能为空' })
-  .transform((value) => value.trim())
-  .pipe(z.string().min(1, '标题不能为空'));
+export interface NormalizedCreateBody {
+  type?: string;
+  status?: string;
+  fields: Record<string, unknown>;
+}
 
-export const createCardSchema = z.object({
-  type: z.enum(CARD_TYPES, {
-    required_error: 'type 不能为空',
-    invalid_type_error: 'type 必须是 task、decision 或 memo',
-  }),
-  title: titleSchema,
-  body: z.string().nullable().optional(),
-  options: z.array(z.string()).optional(),
-  status: z.string().optional(),
-  lane: z.string().nullable().optional(),
-  priority: z.number().int().optional(),
-  assignee: z.string().nullable().optional(),
-});
-
-export const updateCardSchema = z
-  .object({
-    title: titleSchema.optional(),
-    body: z.string().nullable().optional(),
-    priority: z.number().int().optional(),
-    lane: z.string().nullable().optional(),
-    assignee: z.string().nullable().optional(),
-    status: z.unknown().optional(),
-  })
-  .refine((value) => value.status === undefined, {
-    message: '阶段 1 不允许通过 PATCH 修改 status，请等待 transition 接口',
-    path: ['status'],
-  });
+export interface NormalizedUpdateBody {
+  statusPresent: boolean;
+  fields: Record<string, unknown>;
+}
 
 export function parsePagination(url: URL) {
   const all = url.searchParams.get('all') === 'true';
@@ -59,10 +36,62 @@ export function parsePagination(url: URL) {
   return { ok: true as const, value: { all, limit, offset } };
 }
 
-export function zodFieldError(error: z.ZodError) {
-  const issue = error.issues[0];
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function collectFields(body: Record<string, unknown>, fieldsValue: unknown) {
+  if (fieldsValue !== undefined && !isObject(fieldsValue)) {
+    return { ok: false as const, error: { field: 'fields', reason: 'fields 必须是对象' } };
+  }
+
+  const fields = fieldsValue ? { ...(fieldsValue as Record<string, unknown>) } : {};
+  for (const fieldId of FLAT_FIELD_IDS) {
+    if (!(fieldId in body)) continue;
+    if (fieldId in fields) {
+      return { ok: false as const, error: { field: fieldId, reason: `${fieldId} 不能同时出现在 fields 和扁平字段中` } };
+    }
+    fields[fieldId] = body[fieldId];
+  }
+  return { ok: true as const, fields };
+}
+
+export function normalizeCreateBody(input: unknown) {
+  if (!isObject(input)) {
+    return { ok: false as const, error: { field: 'body', reason: '请求体必须是对象' } };
+  }
+  const collected = collectFields(input, input.fields);
+  if (!collected.ok) return collected;
   return {
-    field: String(issue?.path[0] ?? 'body'),
-    reason: issue?.message ?? '请求体格式无效',
+    ok: true as const,
+    value: {
+      type: typeof input.type === 'string' ? input.type : undefined,
+      status: typeof input.status === 'string' ? input.status : undefined,
+      fields: collected.fields,
+    } satisfies NormalizedCreateBody,
   };
+}
+
+export function normalizeUpdateBody(input: unknown) {
+  if (!isObject(input)) {
+    return { ok: false as const, error: { field: 'body', reason: '请求体必须是对象' } };
+  }
+  const collected = collectFields(input, input.fields);
+  if (!collected.ok) return collected;
+  return {
+    ok: true as const,
+    value: {
+      statusPresent: Object.hasOwn(input, 'status'),
+      fields: collected.fields,
+    } satisfies NormalizedUpdateBody,
+  };
+}
+
+export function fieldFilterEntries(url: URL) {
+  const entries: Array<{ fieldId: string; rawValue: string }> = [];
+  for (const [key, value] of url.searchParams.entries()) {
+    if (!key.startsWith('field.')) continue;
+    entries.push({ fieldId: key.slice('field.'.length), rawValue: value });
+  }
+  return entries;
 }

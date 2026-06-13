@@ -71,6 +71,7 @@ describe('阶段 1 卡片 API', () => {
         'body',
         'created_at',
         'created_by',
+        'fields',
         'id',
         'lane',
         'options',
@@ -366,5 +367,175 @@ describe('阶段 1 卡片 API', () => {
     expect(body.error.code, 'PATCH 不存在卡片应返回 CARD_NOT_FOUND。若失败：检查 notFound 错误码').toBe(
       'CARD_NOT_FOUND',
     );
+  });
+});
+
+describe('阶段 2 配置驱动卡片 API', () => {
+  it('POST /cards 拒绝未知卡片类型并接受 fields 请求体', async () => {
+    const { app } = createTestApp();
+
+    const invalidRes = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'unknown', fields: { title: '未知类型' } }),
+    });
+    const invalidBody = await readJson(invalidRes);
+    expect(invalidRes.status, '未知 card type 应返回 400。若失败：检查 type 是否仍使用硬编码 enum').toBe(400);
+    expect(
+      invalidBody.error.details.field,
+      '未知 card type 错误应指出 type。若失败：检查配置驱动 type 校验错误体',
+    ).toBe('type');
+
+    const res = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '配置驱动建卡', risk_level: 'high' } }),
+    });
+    const body = await readJson(res);
+    expect(res.status, 'fields 请求体创建 task 应返回 201。若失败：检查 fields 归一化和 create action').toBe(201);
+    expect(
+      body.card.fields.risk_level,
+      '阶段 1 之外字段 risk_level 应写入 fields 响应。若失败：检查 card_field_values 写入',
+    ).toBe('high');
+    expect(body.card.title, '扁平 title 兼容字段应保留。若失败：检查双形状响应序列化').toBe('配置驱动建卡');
+  });
+
+  it('POST /cards 按 create action 拒绝未授权字段和冲突字段', async () => {
+    const { app } = createTestApp();
+
+    const forbiddenRes = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '非法字段', reply: '不该写' } }),
+    });
+    const forbiddenBody = await readJson(forbiddenRes);
+    expect(
+      forbiddenRes.status,
+      'create action 未允许的字段应返回 400。若失败：检查 writableFields 校验',
+    ).toBe(400);
+    expect(
+      forbiddenBody.error.details.field,
+      '未授权字段错误应指出 reply。若失败：检查字段级错误详情',
+    ).toBe('reply');
+
+    const conflictRes = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', title: '扁平标题', fields: { title: 'fields 标题' } }),
+    });
+    const conflictBody = await readJson(conflictRes);
+    expect(conflictRes.status, '扁平字段和 fields 同时出现同字段应返回 400。若失败：检查冲突检测').toBe(400);
+    expect(
+      conflictBody.error.details.field,
+      '冲突字段错误应指出 title。若失败：检查冲突错误 details.field',
+    ).toBe('title');
+  });
+
+  it('POST /cards 校验配置状态，未知状态返回 400', async () => {
+    const { app } = createTestApp();
+
+    const validRes = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', status: 'active', fields: { title: '活动状态卡片' } }),
+    });
+    const validBody = await readJson(validRes);
+    expect(validRes.status, '配置中存在的 active 状态应允许建卡。若失败：检查 status 配置读取').toBe(201);
+    expect(validBody.card.status, '显式 active 状态应写入响应。若失败：检查 cards.status 写入').toBe('active');
+
+    const invalidRes = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', status: 'missing', fields: { title: '未知状态卡片' } }),
+    });
+    const invalidBody = await readJson(invalidRes);
+    expect(invalidRes.status, '未知状态应返回 400。若失败：检查 status 配置校验').toBe(400);
+    expect(invalidBody.error.details.field, '未知状态错误应指出 status。若失败：检查错误详情').toBe('status');
+  });
+
+  it('PATCH /cards/:id 按 update action 更新字段并拒绝 status 和未授权字段', async () => {
+    const { app } = createTestApp();
+    const createRes = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '待更新', risk_level: 'low' } }),
+    });
+    const created = await readJson(createRes);
+
+    const updateRes = await app.request(`/cards/${created.card.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { title: '已更新', risk_level: 'high' } }),
+    });
+    const updated = await readJson(updateRes);
+    expect(updateRes.status, 'update action 允许字段应更新成功。若失败：检查 PATCH fields 归一化').toBe(200);
+    expect(updated.card.fields.risk_level, 'risk_level 应通过 PATCH 更新。若失败：检查字段值 upsert').toBe('high');
+    expect(updated.card.title, '扁平 title 应由 fields 派生为已更新。若失败：检查序列化').toBe('已更新');
+
+    const statusRes = await app.request(`/cards/${created.card.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ status: 'done' }),
+    });
+    expect(statusRes.status, 'PATCH status 仍应返回 400。若失败：检查 status 禁改兼容规则').toBe(400);
+
+    const forbiddenRes = await app.request(`/cards/${created.card.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { reply: '非法 reply' } }),
+    });
+    const forbiddenBody = await readJson(forbiddenRes);
+    expect(forbiddenRes.status, 'update action 未授权字段应返回 400。若失败：检查 update writableFields').toBe(400);
+    expect(forbiddenBody.error.details.field, '未授权字段错误应指出 reply。若失败：检查错误详情').toBe('reply');
+  });
+
+  it('GET /cards 支持类型感知字段过滤并拒绝非法过滤', async () => {
+    const { app } = createTestApp();
+    await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '高风险', priority: 2, assignee: 'human', risk_level: 'high' } }),
+    });
+    await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '低风险', priority: 1, assignee: 'agent', risk_level: 'low' } }),
+    });
+    await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'decision', fields: { title: '选项卡', options: ['右侧抽屉', '单独详情页'] } }),
+    });
+
+    const riskRes = await app.request('/cards?field.risk_level=high&all=true');
+    const riskBody = await readJson(riskRes);
+    expect(
+      riskBody.cards.map((card: any) => card.title),
+      'field.risk_level=high 应只返回高风险卡。若失败：检查 enum 字段过滤',
+    ).toEqual(['高风险']);
+
+    const aliasRes = await app.request('/cards?assignee=human&all=true');
+    const aliasBody = await readJson(aliasRes);
+    expect(
+      aliasBody.cards.map((card: any) => card.title),
+      'assignee 兼容别名应等价于 field.assignee。若失败：检查过滤别名映射',
+    ).toEqual(['高风险']);
+
+    const optionsRes = await app.request('/cards?field.options=右侧抽屉&all=true');
+    const optionsBody = await readJson(optionsRes);
+    expect(
+      optionsBody.cards.map((card: any) => card.title),
+      'stringList 字段过滤应按列表包含匹配。若失败：检查 json_each 查询和 stringList 过滤解析',
+    ).toEqual(['选项卡']);
+
+    const numberRes = await app.request('/cards?field.priority=abc');
+    const numberBody = await readJson(numberRes);
+    expect(numberRes.status, 'number 字段过滤值无法解析时应返回 400。若失败：检查 kind 解析').toBe(400);
+    expect(numberBody.error.details.field, '非法 number 过滤应指出 priority。若失败：检查错误详情').toBe('priority');
+
+    const unknownRes = await app.request('/cards?field.unknown=value');
+    const unknownBody = await readJson(unknownRes);
+    expect(unknownRes.status, '未知字段过滤应返回 400。若失败：检查字段存在性校验').toBe(400);
+    expect(unknownBody.error.details.field, '未知字段过滤应指出 unknown。若失败：检查错误详情').toBe('unknown');
   });
 });

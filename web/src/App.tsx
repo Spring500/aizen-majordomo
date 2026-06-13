@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getConfig } from './api/config.ts';
 import { createCard, getCard, listCards, updateCard } from './api/cards.ts';
 import { CardDrawer } from './components/CardDrawer.tsx';
 import { CardList } from './components/CardList.tsx';
@@ -6,9 +7,10 @@ import { ErrorMessage } from './components/ErrorMessage.tsx';
 import { NewCardDialog } from './components/NewCardDialog.tsx';
 import { SidebarFilters } from './components/SidebarFilters.tsx';
 import { Topbar } from './components/Topbar.tsx';
-import type { Card, CardFilters } from './types.ts';
+import type { AppConfig, Card, CardFilters } from './types.ts';
 
 export function App() {
+  const [config, setConfig] = useState<AppConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<Card | null>(null);
   const [filters, setFilters] = useState<CardFilters>({ type: '' });
@@ -18,6 +20,12 @@ export function App() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+
+  useEffect(() => {
+    getConfig()
+      .then(setConfig)
+      .catch((err) => setError(err instanceof Error ? err.message : '读取配置失败'));
+  }, []);
 
   const loadCards = useCallback(async () => {
     try {
@@ -37,11 +45,11 @@ export function App() {
   }, [filters, selected]);
 
   useEffect(() => {
-    void loadCards();
-  }, [loadCards]);
+    if (config) void loadCards();
+  }, [config, loadCards]);
 
   const counts = useMemo(() => {
-    const next: Record<string, number> = { all: total, task: 0, decision: 0, memo: 0 };
+    const next: Record<string, number> = { all: total };
     for (const card of cards) next[card.type] = (next[card.type] ?? 0) + 1;
     return next;
   }, [cards, total]);
@@ -59,11 +67,22 @@ export function App() {
     await loadCards();
   }
 
-  async function save(input: Partial<Pick<Card, 'title' | 'body' | 'priority' | 'lane' | 'assignee'>>) {
+  async function save(input: Parameters<typeof updateCard>[1]) {
     if (!selected) return;
     const card = await updateCard(selected.id, input);
     setSelected(card);
     await loadCards();
+  }
+
+  if (!config) {
+    return (
+      <div className="app">
+        <Topbar onNewCard={() => undefined} onRefresh={() => undefined} onOpenFilters={() => undefined} />
+        <main className="main-panel standalone-panel">
+          <ErrorMessage message={error || '正在读取配置...'} />
+        </main>
+      </div>
+    );
   }
 
   return (
@@ -86,7 +105,14 @@ export function App() {
             setDrawerOpen(false);
           }}
         />
-        <SidebarFilters filters={filters} counts={counts} open={filtersOpen} onClose={() => setFiltersOpen(false)} onChange={setFilters} />
+        <SidebarFilters
+          filters={filters}
+          counts={counts}
+          config={config}
+          open={filtersOpen}
+          onClose={() => setFiltersOpen(false)}
+          onChange={setFilters}
+        />
         <main className="main-panel">
           <div className="board-header">
             <div className="board-title">
@@ -97,9 +123,9 @@ export function App() {
           <ErrorMessage message={error} />
           <CardList cards={cards} selectedId={selected?.id} loading={loading} onSelect={(card) => void selectCard(card)} />
         </main>
-        <CardDrawer card={selected} open={drawerOpen} onClose={() => setDrawerOpen(false)} onSave={save} />
+        <CardDrawer card={selected} config={config} open={drawerOpen} onClose={() => setDrawerOpen(false)} onSave={save} />
       </div>
-      <NewCardDialog open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={create} />
+      <NewCardDialog config={config} open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={create} />
     </div>
   );
 }

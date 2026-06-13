@@ -2,7 +2,7 @@
 
 自托管的本地看板系统，同时服务人类与任意 AI agent：人类用作个人备忘与对 agent 的指挥/审批界面，agent 用作任务协作与向人类发起异步确认（决策卡）。
 
-> 当前具备阶段 1 本地单人可用看板：Hono API、SQLite 持久化、React 前端、卡片创建/列表/详情/基础编辑，以及 Vitest + Playwright 验收。鉴权、状态流转、changes、评论和 hook 尚未实现。
+> 当前具备阶段 2 基础配置模型：Hono API、SQLite 持久化、React 前端、配置初始化和读取、配置驱动的新建/编辑/筛选、字段值表存储、阶段 1 API 兼容响应，以及 Vitest + Playwright 验收。鉴权、状态流转执行、changes、评论和 hook 运行器尚未实现。
 
 ## 技术栈
 
@@ -97,9 +97,37 @@ pnpm start
 curl http://localhost:3000/health
 # {"status":"ok","name":"aizen-majordomo","time":<epoch_ms>}
 
+# 读取运行时配置
+curl http://localhost:3000/config
+# {"cardTypes":[...],"statuses":[...],"transitions":[...],"hookActionModels":[...],"hooks":[...]}
+
 # 列卡
 curl http://localhost:3000/cards
 # {"cards":[],"total":0}
+```
+
+推荐使用字段驱动请求体创建卡片：
+
+```bash
+curl -X POST http://localhost:3000/cards \
+  -H "Content-Type: application/json" \
+  -d '{"type":"task","status":"active","fields":{"title":"整理阶段 2","body":"验证配置驱动","priority":1,"risk_level":"high"}}'
+```
+
+阶段 1 的扁平字段请求仍兼容：
+
+```bash
+curl -X POST http://localhost:3000/cards \
+  -H "Content-Type: application/json" \
+  -d '{"type":"task","title":"兼容建卡","body":"仍可使用扁平字段"}'
+```
+
+响应同时包含 `fields` 和阶段 1 扁平字段。若同一字段同时出现在 `fields` 与扁平字段中，请求会返回 400。
+
+字段过滤使用 `field.<fieldId>`：
+
+```bash
+curl "http://localhost:3000/cards?field.risk_level=high"
 ```
 
 类型检查：
@@ -124,9 +152,11 @@ aizen-majordomo/
 │  ├─ types.ts            # 共享类型（AppEnv 等）
 │  ├─ db/
 │  │  ├─ index.ts         # createDb(path)：连接(WAL/外键)+建表，支持 :memory:
-│  │  └─ schema.sql       # 规格 §5.2 全部表与索引（幂等建表）
+│  │  └─ schema.sql       # 配置表、卡片核心表、字段值表与索引（幂等建表）
+│  ├─ config/             # 配置类型、样例、校验、初始化、repository
 │  └─ routes/
-│     └─ cards.ts         # 阶段 1 卡片 API：创建、列表、读取、编辑
+│     ├─ cards.ts         # 配置驱动卡片 API：创建、列表、读取、编辑
+│     └─ config.ts        # GET /config
 ├─ tests/http/            # HTTP 行为验收（Vitest + app.request）
 ├─ tests/e2e/             # Playwright 浏览器验收
 ├─ web/                   # React + Vite 前端
@@ -161,20 +191,32 @@ aizen-majordomo/
 
 ## 数据库
 
-启动时自动执行 `src/db/schema.sql`（全部 `CREATE TABLE IF NOT EXISTS`，可重复运行）。包含表：`cards`、`comments`、`changes`、`hooks`、`statuses`、`transitions`、`roles`、`tokens`、`sessions`、`settings`。已开启 WAL 以满足并发读写的原子性要求。
+启动时自动执行 `src/db/schema.sql`（全部 `CREATE TABLE IF NOT EXISTS`，可重复运行）。运行时配置以 SQLite 为事实来源，启动时用内置样例配置按同 id 覆盖初始化并 fail fast 校验。
 
-## 阶段 1 人工验收
+核心表包括：
+
+- `card_types`、`statuses`、`transitions`、`hook_action_models`、`hooks`：配置实体。
+- `cards`：卡片核心元数据和状态。
+- `card_field_values`：业务字段值，统一以 JSON 存储。
+- `comments`、`changes`、`roles`、`tokens`、`sessions`、`settings`：后续能力预留表。
+
+已开启 WAL 以满足并发读写的原子性要求。
+
+## 阶段 2 人工验收
 
 1. 删除或更换本地 `DB_PATH`，从空库启动。
-2. 打开前端首页，看到空状态。
-3. 创建一张 task，标题和正文能保存。
-4. 创建一张 decision，填写两个 options，详情抽屉能看到 options。
-5. 创建一张 memo，类型显示正确。
-6. 刷新页面，三张卡仍然存在。
-7. 打开 task 详情，修改标题、正文、优先级、负责人，保存后仍显示更新内容。
-8. 尝试创建空标题卡片，页面显示“标题不能为空”。
-9. 使用类型筛选，列表只显示目标类型。
-10. 连续记录至少 5 条真实事项，不需要 curl 或直接改数据库。
+2. 打开 `http://127.0.0.1:3000/config`，确认返回 `task`、`decision`、`memo`、状态、流转和 hook action model。
+3. 打开前端首页，看到空状态，且新建表单类型来自配置。
+4. 创建一张 task，填写标题、正文、优先级、负责人和风险等级。
+5. 创建一张 decision，填写标题、正文和 options，详情抽屉能看到 options。
+6. 创建一张 memo，类型显示正确。
+7. 刷新页面，已创建卡片仍然存在。
+8. 打开 task 详情，修改标题、正文、优先级、负责人和风险等级，保存后刷新仍存在。
+9. 使用风险等级筛选，列表只显示目标字段值的卡片。
+10. 创建或查看一张使用 `active` 等非默认状态的卡片。
+11. 尝试创建空标题卡片，页面显示“标题不能为空”。
+12. 传入未知 card type、未知状态、未授权字段或非法字段过滤值，确认返回明确错误。
+13. 收窄浏览器，重复新建、编辑、筛选和错误查看路径。
 
 ## 后续路线图（未实现）
 

@@ -1,21 +1,16 @@
-import type { CardFilters, CardType } from '../types.ts';
-
-const typeItems: Array<{ label: string; value: CardType | '' }> = [
-  { label: '全部卡片', value: '' },
-  { label: 'Task', value: 'task' },
-  { label: 'Decision', value: 'decision' },
-  { label: 'Memo', value: 'memo' },
-];
+import type { AppConfig, CardFilters } from '../types.ts';
 
 export function SidebarFilters({
   filters,
   counts,
+  config,
   open,
   onClose,
   onChange,
 }: {
   filters: CardFilters;
   counts: Record<string, number>;
+  config: AppConfig;
   open: boolean;
   onClose: () => void;
   onChange: (filters: CardFilters) => void;
@@ -24,6 +19,7 @@ export function SidebarFilters({
     onChange(next);
     onClose();
   }
+  const riskField = config.cardTypes.flatMap((item) => item.fields).find((field) => field.id === 'risk_level');
 
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="筛选">
@@ -39,25 +35,69 @@ export function SidebarFilters({
       <section className="sidebar-section">
         <h2>类型</h2>
         <div className="filter-list">
-          {typeItems.map((item) => (
+          <button
+            aria-label="全部卡片"
+            className={`filter-item ${filters.type === '' ? 'active' : ''}`}
+            type="button"
+            onClick={() => updateFilters({ ...filters, type: '' })}
+          >
+            <span>全部卡片</span>
+            <span className="count">{counts.all ?? 0}</span>
+          </button>
+          {config.cardTypes.map((item) => (
             <button
-              aria-label={item.label}
-              className={`filter-item ${filters.type === item.value ? 'active' : ''}`}
-              key={item.label}
+              aria-label={item.name}
+              className={`filter-item ${filters.type === item.id ? 'active' : ''}`}
+              key={item.id}
               type="button"
-              onClick={() => updateFilters({ ...filters, type: item.value })}
+              onClick={() => updateFilters({ ...filters, type: item.id })}
             >
-              <span>{item.label}</span>
-              <span className="count">{counts[item.value || 'all'] ?? 0}</span>
+              <span>{item.name}</span>
+              <span className="count">{counts[item.id] ?? 0}</span>
             </button>
           ))}
         </div>
       </section>
       <section className="sidebar-section">
+        <h2>负责人</h2>
+        <label className="field compact-field">
+          <span>负责人</span>
+          <input
+            aria-label="筛选负责人"
+            value={filters.assignee ?? ''}
+            onChange={(event) => onChange({ ...filters, assignee: event.target.value || undefined })}
+            onBlur={onClose}
+          />
+        </label>
+      </section>
+      {riskField && (
+        <section className="sidebar-section">
+          <h2>风险等级</h2>
+          <select
+            aria-label="筛选风险等级"
+            value={filters.fields?.risk_level ?? ''}
+            onChange={(event) =>
+              updateFilters({
+                ...filters,
+                fields: { ...(filters.fields ?? {}), risk_level: event.target.value },
+              })
+            }
+          >
+            <option value="">全部</option>
+            {riskField.options?.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </section>
+      )}
+      <section className="sidebar-section">
         <h2>阶段</h2>
         <div className="hint-list">
-          <span>default</span>
-          <span>状态流转将在阶段 3 接入</span>
+          {config.statuses.map((status) => (
+            <span key={status.id}>{status.id}</span>
+          ))}
         </div>
       </section>
     </aside>

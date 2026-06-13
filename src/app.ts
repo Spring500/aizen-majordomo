@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppEnv } from './types.ts';
 import { cards } from './routes/cards.ts';
+import { configRoute } from './routes/config.ts';
 import { mountStatic } from './http/static.ts';
 
 // 组装 Hono 应用:把 db 经 context 注入,再挂载各路由。
@@ -18,6 +19,7 @@ export function createApp(db: DatabaseSync) {
     c.json({ status: 'ok', name: 'aizen-majordomo', time: Date.now() }),
   );
 
+  app.route('/config', configRoute);
   app.route('/cards', cards);
   mountStatic(app);
 

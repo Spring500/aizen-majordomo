@@ -28,7 +28,8 @@ export function CardList({
             <strong>{card.title}</strong>
             <small>{card.body || '无正文'}</small>
           </span>
-          <span className="priority">P{card.priority}</span>
+          <span className="priority">P{card.priority ?? 0}</span>
+          {typeof card.fields.risk_level === 'string' && <span className="priority">{card.fields.risk_level}</span>}
           <span className="assignee">{card.assignee ?? '未分配'}</span>
         </button>
       ))}

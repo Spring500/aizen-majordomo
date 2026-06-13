@@ -18,7 +18,7 @@ interface ErrorResponse {
   };
 }
 
-async function parseResponse<T>(res: Response): Promise<T> {
+export async function parseResponse<T>(res: Response): Promise<T> {
   const body = (await res.json()) as T & ErrorResponse;
   if (!res.ok) {
     throw new Error(body.error?.details?.reason ?? body.error?.message ?? '请求失败');
@@ -29,6 +29,11 @@ async function parseResponse<T>(res: Response): Promise<T> {
 export async function listCards(filters: CardFilters): Promise<ListCardsResponse> {
   const params = new URLSearchParams();
   if (filters.type) params.set('type', filters.type);
+  if (filters.status) params.set('status', filters.status);
+  if (filters.assignee) params.set('assignee', filters.assignee);
+  for (const [fieldId, value] of Object.entries(filters.fields ?? {})) {
+    if (value) params.set(`field.${fieldId}`, value);
+  }
   const query = params.toString();
   const res = await fetch(`/cards${query ? `?${query}` : ''}`);
   return parseResponse<ListCardsResponse>(res);
@@ -36,9 +41,8 @@ export async function listCards(filters: CardFilters): Promise<ListCardsResponse
 
 export async function createCard(input: {
   type: CardType;
-  title: string;
-  body: string;
-  options?: string[];
+  status?: string;
+  fields: Record<string, unknown>;
 }): Promise<Card> {
   const res = await fetch('/cards', {
     method: 'POST',
@@ -55,7 +59,7 @@ export async function getCard(id: string): Promise<Card> {
 
 export async function updateCard(
   id: string,
-  input: Partial<Pick<Card, 'title' | 'body' | 'priority' | 'lane' | 'assignee'>>,
+  input: { fields: Record<string, unknown> },
 ): Promise<Card> {
   const res = await fetch(`/cards/${id}`, {
     method: 'PATCH',
