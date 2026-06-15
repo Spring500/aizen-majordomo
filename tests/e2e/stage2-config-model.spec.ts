@@ -29,7 +29,23 @@ test('阶段 2 配置驱动字段、状态和过滤路径可用', async ({ page 
   await drawer.getByLabel('风险等级').selectOption('low');
   await drawer.getByRole('button', { name: '保存' }).click();
 
+  await page.getByRole('button', { name: '新建卡片' }).click();
+  const secondDialog = page.getByRole('region', { name: '新建卡片' });
+  await secondDialog.getByLabel('标题').fill('默认状态配置卡');
+  await secondDialog.getByRole('button', { name: '创建' }).click();
+
   const filters = page.getByRole('complementary', { name: '筛选' });
+  await filters.getByRole('button', { name: '处理中', exact: true }).click();
+  await expect(
+    page.getByRole('button', { name: /高风险配置卡/ }),
+    '点击状态筛选“处理中”后应显示 active 卡。若失败：检查 SidebarFilters status 参数和列表刷新',
+  ).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: /默认状态配置卡/ }),
+    '点击状态筛选“处理中”后不应显示 default 卡。若失败：检查 status 过滤是否生效',
+  ).toHaveCount(0);
+
+  await filters.getByRole('button', { name: '全部状态', exact: true }).click();
   await filters.getByLabel('筛选风险等级').selectOption('low');
 
   await expect(
