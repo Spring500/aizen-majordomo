@@ -10,6 +10,15 @@
 
 ---
 
+## 补充规格
+
+阶段 2 的配置化基建必须包含场景化配置测试能力。补充规格和执行拆解见：
+
+- `docs/stages/stage-2-basic-config-model/scenario-config-testing-spec.md`
+- `docs/stages/stage-2-basic-config-model/scenario-config-testing-plan.md`
+
+该补充规格属于阶段 2 完成范围，不是后续阶段事项。
+
 ## 0. 已确认决策
 
 - 开发必须在分支或 worktree 上进行，不在 `main` 直接实现。
@@ -25,6 +34,8 @@
 - 请求采用双形状过渡：接受 `{ fields: {...} }`，也兼容阶段 1 扁平字段；同字段同时出现在两处时返回 400。
 - `GET /cards` 支持 `field.<fieldId>=<value>` 类型感知基础过滤；旧的 `lane`、`assignee` 查询参数保留为兼容别名。
 - 前端必须消费 `GET /config`，新建和编辑表单从配置动态渲染。
+- 默认配置和测试配置统一使用 `scenarios/` 下的 JSON 场景配置；不再维护独立 TypeScript 样例配置作为配置事实来源。
+- 人工验收采用场景 README 说明“场景内容、用途和可观察点”；交付说明不写入场景 README。
 
 ## 1. 文件结构计划
 
@@ -110,6 +121,27 @@
 
 - Modify: `README.md`
   - 更新当前状态、`GET /config`、字段驱动请求体和人工验收路径。
+- Create: `docs/stages/stage-2-basic-config-model/scenario-config-testing-spec.md`
+  - 定义阶段 2 场景化配置测试规格。
+- Create: `docs/stages/stage-2-basic-config-model/scenario-config-testing-plan.md`
+  - 定义补充规格的实施计划。
+
+### 场景化配置测试
+
+补充实现以 `scenario-config-testing-spec.md` 为准，至少包含：
+
+- Create: `scenarios/default-sample/`
+- Create: `scenarios/custom-review-flow/`
+- Create: `scenarios/status-matrix/`
+- Create: `scenarios/existing-data-config-change/`
+- Create: `scenarios/legacy-stage1-migration/`
+- Create: `scenarios/large-dataset-smoke/`
+- Create: `scripts/scenario.ts`
+- Create: `scripts/scenario-lib.ts`
+- Create: `tests/helpers/scenario.ts`
+- Modify: `scripts/e2e-server.ts`
+- Modify: `.gitignore`
+- Modify: `package.json`
 
 ## 2. 数据设计
 
@@ -791,22 +823,27 @@ Expected: all pass.
 - [ ] 页面可创建、编辑并过滤阶段 1 之外的配置字段。
 - [ ] 页面可读取并使用阶段 1 之外的配置状态。
 - [ ] 宽屏和窄屏布局均可完成新建、编辑、筛选和错误查看。
+- [ ] 场景化测试覆盖 default-sample、custom-review-flow、status-matrix、existing-data-config-change、legacy-stage1-migration、large-dataset-smoke。
+- [ ] 非默认场景能证明前端表单不是写死默认样例字段。
+- [ ] 场景工具能准备和复制稳定数据库，E2E 不污染 prepared db。
 
 ## 7. 人工验收指南
 
-1. `pnpm build:web`
-2. `pnpm start`
-3. 打开 `http://127.0.0.1:3000/config`，确认返回 `task`、`decision`、`memo`、状态、流转和 hook action model。
-4. 打开前端首页，确认新建表单类型来自配置。
-5. 创建一张 task，填写标题、正文、优先级和负责人。
-6. 创建一张 decision，填写标题、正文和 options。
-7. 打开 task 详情，确认编辑字段来自 `update` 动作。
-8. 修改 task 标题、正文、优先级、负责人，保存后刷新仍存在。
-9. 创建或编辑一个阶段 1 之外的配置字段，例如 `risk_level`，确认刷新后仍存在。
-10. 使用阶段 1 之外的配置字段过滤列表。
-11. 创建或查看一张使用阶段 1 之外配置状态的卡片。
-12. 传入未知 card type、未知状态、未授权字段或非法字段过滤值，确认页面显示明确错误。
-13. 收窄浏览器，重复新建、编辑、筛选和错误查看路径。
+阶段 2 人工验收应以“能力声明和可观察证据”为核心，不把用户限制为一套固定点击流程。推荐入口：
+
+1. `pnpm scenario:list`
+2. `pnpm scenario:start <场景 id> [--fresh]`
+3. 阅读场景 `README.md`，了解该场景包含什么配置、什么初始数据、适合观察什么能力。
+
+必须可观察的能力：
+
+- 默认样例配置可用。
+- 非默认配置能改变前端表单、后端校验和字段过滤。
+- 状态配置能影响建卡状态选择和状态筛选。
+- 已有数据后配置变化不会破坏历史字段读取。
+- 阶段 1 旧库能迁移并保持 API/前端可用。
+- 1000 张卡场景下分页和基础过滤仍可用。
+- 宽屏和窄屏布局均可完成核心能力观察。
 
 ## 8. 提交拆分建议
 
@@ -840,15 +877,22 @@ Expected: all pass.
 - 样例配置包含阶段 1 之外状态，且该状态可被读取并用于建卡校验。
 - 前端使用 `/config` 渲染新建、编辑和筛选。
 - S2-T1 到 S2-T18 均有自动化测试覆盖。
+- `scenario-config-testing-spec.md` 中定义的 6 个场景全部落地。
+- 默认配置来自 `scenarios/default-sample/config.json`，且指定 `CONFIG_SEED_PATH` 可切换配置种子。
+- 场景 CLI 支持 list、prepare、start、copy-db。
+- 生成数据库被 `.gitignore` 忽略，prepared db 不被 E2E 污染。
+- 自动化测试覆盖 S2-T19 到 S2-T25。
 - 宽屏和窄屏 E2E 覆盖新建、编辑、筛选和错误提示。
 - `pnpm test`、`pnpm typecheck`、`pnpm test:e2e` 通过。
+- `pnpm build:web` 通过。
+- `pnpm scenario:list`、`pnpm scenario:prepare default-sample`、`pnpm scenario:copy-db custom-review-flow .tmp/scenarios/custom-review-flow.verify.db` 通过。
 - README 与实际行为一致。
 - `git status --short` 中不包含误提交的 `data/`、`代理执行笔记/` 等本地资料。
 
 ## 10. 自查记录
 
-- 路线图 S2-F1 到 S2-F12 均有任务覆盖。
-- 路线图 S2-T1 到 S2-T18 均进入测试清单。
-- 路线图 S2-H1 到 S2-H6 均进入人工验收指南。
+- 路线图 S2-F1 到 S2-F13 均有任务覆盖。
+- 路线图 S2-T1 到 S2-T25 均进入测试清单。
+- 路线图 S2-H1 到 S2-H8 均进入人工验收指南。
 - 计划没有修改阶段 1 历史计划文档。
 - 后续阶段要求以 `docs/roadmap.md` 为准，未写入本阶段计划作为未来提醒。
