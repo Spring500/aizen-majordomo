@@ -20,6 +20,7 @@ export function SidebarFilters({
     onClose();
   }
   const riskField = config.cardTypes.flatMap((item) => item.fields).find((field) => field.id === 'risk_level');
+  const enabledStatuses = config.statuses.filter((status) => status.enabled !== false);
 
   return (
     <aside className={`sidebar ${open ? 'open' : ''}`} aria-label="筛选">
@@ -59,7 +60,7 @@ export function SidebarFilters({
         </div>
       </section>
       <section className="sidebar-section">
-        <h2>负责人</h2>
+        <h2>字段</h2>
         <label className="field compact-field">
           <span>负责人</span>
           <input
@@ -69,34 +70,50 @@ export function SidebarFilters({
             onBlur={onClose}
           />
         </label>
+        {riskField && (
+          <label className="field compact-field">
+            <span>风险等级</span>
+            <select
+              aria-label="筛选风险等级"
+              value={filters.fields?.risk_level ?? ''}
+              onChange={(event) =>
+                updateFilters({
+                  ...filters,
+                  fields: { ...(filters.fields ?? {}), risk_level: event.target.value },
+                })
+              }
+            >
+              <option value="">全部</option>
+              {riskField.options?.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </section>
-      {riskField && (
-        <section className="sidebar-section">
-          <h2>风险等级</h2>
-          <select
-            aria-label="筛选风险等级"
-            value={filters.fields?.risk_level ?? ''}
-            onChange={(event) =>
-              updateFilters({
-                ...filters,
-                fields: { ...(filters.fields ?? {}), risk_level: event.target.value },
-              })
-            }
-          >
-            <option value="">全部</option>
-            {riskField.options?.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </section>
-      )}
       <section className="sidebar-section">
-        <h2>阶段</h2>
-        <div className="hint-list">
-          {config.statuses.map((status) => (
-            <span key={status.id}>{status.id}</span>
+        <h2>状态</h2>
+        <div className="filter-list">
+          <button
+            aria-label="全部状态"
+            className={`filter-item ${!filters.status ? 'active' : ''}`}
+            type="button"
+            onClick={() => updateFilters({ ...filters, status: undefined })}
+          >
+            <span>全部状态</span>
+          </button>
+          {enabledStatuses.map((status) => (
+            <button
+              aria-label={status.name}
+              className={`filter-item ${filters.status === status.id ? 'active' : ''}`}
+              key={status.id}
+              type="button"
+              onClick={() => updateFilters({ ...filters, status: status.id })}
+            >
+              <span>{status.name}</span>
+            </button>
           ))}
         </div>
       </section>

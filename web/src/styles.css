@@ -424,6 +424,10 @@ button {
   line-height: 1.45;
 }
 
+.compact-field + .compact-field {
+  margin-top: 12px;
+}
+
 .field-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
