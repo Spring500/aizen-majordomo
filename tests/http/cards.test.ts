@@ -13,8 +13,8 @@ describe('GET /cards 列卡', () => {
     ).toBe(200);
     expect(
       await res.json(),
-      '空看板应返回 {cards:[],total:0}。若失败：检查空库查询路径或 serialize() 是否对空结果出错',
-    ).toEqual({ cards: [], total: 0 });
+      '空看板应返回空 cards、total=0 和空类型计数。若失败：检查空库查询路径或 serialize() 是否对空结果出错',
+    ).toEqual({ cards: [], total: 0, countsByType: {} });
   });
 
   it('给定库中已有一张决策卡，当请求列卡时，返回该卡且 options 被解析为数组', async () => {
@@ -224,6 +224,10 @@ describe('阶段 1 卡片 API', () => {
 
     expect(body.cards.length, '默认列表应只返回 50 张卡。若失败：检查默认 limit 是否为 50').toBe(50);
     expect(body.total, 'total 应返回过滤后的全部数量 55。若失败：检查 total 是否错误使用分页后长度').toBe(55);
+    expect(
+      body.countsByType.decision,
+      '类型计数应统计分页前的匹配总数。若失败：检查 SidebarFilters 是否会把当前页 50 误当作 Decision 总数',
+    ).toBe(55);
   });
 
   it('GET /cards?all=true 返回全部匹配卡片并忽略 limit 与 offset', async () => {

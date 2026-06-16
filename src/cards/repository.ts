@@ -183,10 +183,6 @@ export function createCard(db: DatabaseSync, input: CreateCardInput): Card {
 export function listCards(db: DatabaseSync, input: ListCardsInput) {
   const clauses: string[] = [];
   const params: Record<string, unknown> = {};
-  if (input.type) {
-    clauses.push('cards.type = @type');
-    params.type = input.type;
-  }
   if (input.status) {
     clauses.push('cards.status = @status');
     params.status = input.status;
@@ -218,18 +214,26 @@ export function listCards(db: DatabaseSync, input: ListCardsInput) {
     params[`field${index}`] = filter.fieldId;
     params[`value${index}`] = filter.kind === 'stringList' ? filter.value : jsonValue(filter.value);
   });
-  const where = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
-  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM cards ${where}`).get(params as any) as { total: number };
+  const typeClause = input.type ? 'cards.type = @type' : '';
+  const listClauses = typeClause ? [...clauses, typeClause] : clauses;
+  const where = listClauses.length ? `WHERE ${listClauses.join(' AND ')}` : '';
+  const countParams = input.type ? { ...params, type: input.type } : params;
+  const totalRow = db.prepare(`SELECT COUNT(*) AS total FROM cards ${where}`).get(countParams as any) as { total: number };
   const pagination = input.all ? '' : 'LIMIT @limit OFFSET @offset';
-  const queryParams = input.all ? params : { ...params, limit: input.limit, offset: input.offset };
+  const queryParams = input.all ? countParams : { ...countParams, limit: input.limit, offset: input.offset };
   const rows = db
     .prepare(`SELECT * FROM cards ${where} ORDER BY created_at DESC, id DESC ${pagination}`)
     .all(queryParams as any) as unknown as CardCoreRow[];
+  const countsWhere = clauses.length ? `WHERE ${clauses.join(' AND ')}` : '';
+  const countRows = db
+    .prepare(`SELECT cards.type AS type, COUNT(*) AS total FROM cards ${countsWhere} GROUP BY cards.type`)
+    .all(params as any) as Array<{ type: string; total: number }>;
+  const countsByType = Object.fromEntries(countRows.map((row) => [row.type, row.total]));
   const fields = loadFieldValues(
     db,
     rows.map((row) => row.id),
   );
-  return { rows: rows.map((row) => serializeCard(row, fields.get(row.id) ?? {})), total: totalRow.total };
+  return { rows: rows.map((row) => serializeCard(row, fields.get(row.id) ?? {})), total: totalRow.total, countsByType };
 }
 
 export function findCardById(db: DatabaseSync, id: string): Card | null {

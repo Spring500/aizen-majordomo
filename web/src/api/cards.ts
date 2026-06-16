@@ -3,6 +3,7 @@ import type { Card, CardFilters, CardType } from '../types.ts';
 interface ListCardsResponse {
   cards: Card[];
   total: number;
+  countsByType: Record<string, number>;
 }
 
 interface CardResponse {

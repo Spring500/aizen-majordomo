@@ -66,7 +66,7 @@ cards.get('/', (c) => {
     ...pagination.value,
   });
 
-  return c.json({ cards: result.rows, total: result.total });
+  return c.json({ cards: result.rows, total: result.total, countsByType: result.countsByType });
 });
 
 cards.post('/', async (c) => {

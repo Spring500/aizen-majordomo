@@ -40,6 +40,7 @@
 - 字段条件列表采用紧凑行布局；未支持过滤的字段使用“未支持筛选”文案，不使用容易换行的 `! ... 暂未支持` 组合或大块警告说明。
 - 卡片列表展示不强制要求 `title`、`priority` 或 `assignee` 字段；当 `title` 为空或业务类型未定义标题字段时，列表使用配置字段生成最小可读主信息和副信息。
 - 大量数据列表采用显式分页，不做无限滚动；前端传递 `limit/offset`，默认每页 50，允许切换 50/100/200/500，筛选变化回到第一页。
+- 工作台采用固定视口布局：顶部栏、左右控制栏和分页栏不随卡片列表滚动；大量卡片时只有中间卡片列表区域独立滚动。
 - 配置化筛选的宽屏和窄屏讨论稿归档到 `attachments/`，阶段 2 实现以正式代码和本计划为准。
 
 ## 1. 文件结构计划
@@ -138,6 +139,8 @@
   - 归档配置化筛选条件列表的窄屏抽屉布局讨论稿。
 - Create: `docs/stages/stage-2-basic-config-model/attachments/filter-condition-list-compact-demo.html`
   - 归档筛选条件列表紧凑版布局讨论稿。
+- Create: `docs/stages/stage-2-basic-config-model/attachments/fixed-shell-scroll-demo.html`
+  - 归档固定工作台与列表滚动区布局讨论稿。
 
 ### 场景化配置测试
 
@@ -764,7 +767,11 @@ List rows must not require `title`、`priority` or `assignee`. If a card lacks `
 
 Use backend `limit/offset/total` for list pagination. Default to 50 cards per page, support 50/100/200/500 page sizes, and reset to the first page when filters change.
 
-- [ ] **Step 8: 保持宽屏/窄屏功能对位**
+- [ ] **Step 8: 固定工作台滚动边界**
+
+Keep the app shell within the browser viewport. Topbar, side controls, drawer footer and pagination remain reachable; only the card list area scrolls when there are many cards.
+
+- [ ] **Step 9: 保持宽屏/窄屏功能对位**
 
 The same create/edit/filter capabilities must be reachable in both layouts.
 
@@ -845,6 +852,7 @@ Expected: all pass.
 - [ ] 筛选条件选择器展示字段类型；未支持过滤语义的字段可见并带“暂未支持”标识。
 - [ ] 无 `title`、`priority`、`assignee` 的业务类型仍能在列表中显示可读主信息和副信息。
 - [ ] 大量数据场景可通过显式分页访问默认前 50 张之后的数据。
+- [ ] 大量数据场景下页面本身不滚动，顶部栏、筛选栏和分页栏保持可见。
 - [ ] 页面可创建、编辑并过滤阶段 1 之外的配置字段。
 - [ ] 页面可读取并使用阶段 1 之外的配置状态。
 - [ ] 宽屏和窄屏布局均可完成新建、编辑、筛选和错误查看。
@@ -904,6 +912,7 @@ Expected: all pass.
 - 前端字段筛选使用条件列表，字段选项来自配置并展示字段类型；未支持过滤语义的字段可见且不会生成查询条件。
 - 卡片列表不强制依赖 `title`、`priority`、`assignee`；非默认场景可在无这些字段时显示配置字段摘要。
 - 卡片列表提供显式分页，large-dataset-smoke 的 1000 张卡可通过翻页访问。
+- 工作台固定在浏览器视口内，large-dataset-smoke 下只有卡片列表区域滚动。
 - S2-T1 到 S2-T18 均有自动化测试覆盖。
 - `scenario-config-testing-spec.md` 中定义的 6 个场景全部落地。
 - 默认配置来自 `scenarios/default-sample/config.json`，且指定 `CONFIG_SEED_PATH` 可切换配置种子。
@@ -926,3 +935,4 @@ Expected: all pass.
 - 后续阶段要求以 `docs/roadmap.md` 为准，未写入本阶段计划作为未来提醒。
 - 配置化筛选条件列表的宽屏和窄屏 HTML 讨论稿已归档到阶段 2 `attachments/`。
 - 配置化筛选条件列表紧凑版 HTML 讨论稿已归档到阶段 2 `attachments/`。
+- 固定工作台与列表滚动区 HTML 讨论稿已归档到阶段 2 `attachments/`。

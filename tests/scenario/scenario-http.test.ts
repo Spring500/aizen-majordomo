@@ -116,6 +116,10 @@ describe('阶段 2 场景化配置 HTTP 证明点', () => {
 
       expect(firstPageBody.cards.length, '大量数据场景默认分页应返回 50 张。若失败：检查分页默认值').toBe(50);
       expect(firstPageBody.total, '大量数据场景总数应为 1000。若失败：检查 seed 规模或 total 查询').toBe(1000);
+      expect(
+        firstPageBody.countsByType.task,
+        '大量数据场景 Task 计数应为 1000 而不是当前页 50。若失败：检查类型计数是否错误来自当前页',
+      ).toBe(1000);
       expect(highBody.total > 0, '大量数据场景应能过滤 high 风险卡。若失败：检查字段过滤').toBe(true);
     });
   }, 20_000);

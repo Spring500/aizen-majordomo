@@ -16,6 +16,7 @@ export function App() {
   const [selected, setSelected] = useState<Card | null>(null);
   const [filters, setFilters] = useState<CardFilters>({ type: '', limit: 50, offset: 0 });
   const [total, setTotal] = useState(0);
+  const [countsByType, setCountsByType] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,6 +36,7 @@ export function App() {
       const result = await listCards(filters);
       setCards(result.cards);
       setTotal(result.total);
+      setCountsByType(result.countsByType);
       if (selected && !result.cards.some((card) => card.id === selected.id)) {
         setSelected(null);
       }
@@ -50,10 +52,9 @@ export function App() {
   }, [config, loadCards]);
 
   const counts = useMemo(() => {
-    const next: Record<string, number> = { all: total };
-    for (const card of cards) next[card.type] = (next[card.type] ?? 0) + 1;
-    return next;
-  }, [cards, total]);
+    const all = Object.values(countsByType).reduce((sum, count) => sum + count, 0);
+    return { all, ...countsByType };
+  }, [countsByType]);
 
   async function selectCard(card: Card) {
     setSelected(await getCard(card.id));
@@ -134,13 +135,15 @@ export function App() {
             </div>
           </div>
           <ErrorMessage message={error} />
-          <CardList
-            cards={cards}
-            config={config}
-            selectedId={selected?.id}
-            loading={loading}
-            onSelect={(card) => void selectCard(card)}
-          />
+          <div className="card-list-scroll">
+            <CardList
+              cards={cards}
+              config={config}
+              selectedId={selected?.id}
+              loading={loading}
+              onSelect={(card) => void selectCard(card)}
+            />
+          </div>
           <CardPagination
             limit={filters.limit ?? 50}
             offset={filters.offset ?? 0}
