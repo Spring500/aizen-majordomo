@@ -25,23 +25,25 @@ export function CardPagination({
       <span className="pagination-summary">
         第 {start}-{end} 张 / 共 {total} 张
       </span>
-      <select
-        aria-label="每页数量"
-        value={limit}
-        onChange={(event) => onLimitChange(Number(event.target.value))}
-      >
-        {pageSizes.map((size) => (
-          <option key={size} value={size}>
-            {size} / 页
-          </option>
-        ))}
-      </select>
-      <button className="button" type="button" onClick={() => onChange(previousOffset)} disabled={offset === 0}>
-        上一页
-      </button>
-      <button className="button" type="button" onClick={() => onChange(nextOffset)} disabled={nextOffset >= total}>
-        下一页
-      </button>
+      <div className="pagination-controls">
+        <select
+          aria-label="每页数量"
+          value={limit}
+          onChange={(event) => onLimitChange(Number(event.target.value))}
+        >
+          {pageSizes.map((size) => (
+            <option key={size} value={size}>
+              {size} / 页
+            </option>
+          ))}
+        </select>
+        <button className="button" type="button" onClick={() => onChange(previousOffset)} disabled={offset === 0}>
+          上一页
+        </button>
+        <button className="button" type="button" onClick={() => onChange(nextOffset)} disabled={nextOffset >= total}>
+          下一页
+        </button>
+      </div>
     </nav>
   );
 }

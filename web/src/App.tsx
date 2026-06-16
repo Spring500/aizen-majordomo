@@ -128,14 +128,16 @@ export function App() {
           onChange={changeFilters}
         />
         <main className="main-panel">
-          <div className="board-header">
+          <div className="main-panel-header board-header">
             <div className="board-title">
               <h1>本地单人看板</h1>
               <p>{total} 张卡片，按创建时间倒序排列。</p>
             </div>
           </div>
-          <ErrorMessage message={error} />
-          <div className="card-list-scroll">
+          <div className="main-panel-notice">
+            <ErrorMessage message={error} />
+          </div>
+          <div className="main-panel-content card-list-scroll">
             <CardList
               cards={cards}
               config={config}
@@ -144,13 +146,15 @@ export function App() {
               onSelect={(card) => void selectCard(card)}
             />
           </div>
-          <CardPagination
-            limit={filters.limit ?? 50}
-            offset={filters.offset ?? 0}
-            total={total}
-            onChange={changePage}
-            onLimitChange={changePageSize}
-          />
+          <div className="main-panel-footer">
+            <CardPagination
+              limit={filters.limit ?? 50}
+              offset={filters.offset ?? 0}
+              total={total}
+              onChange={changePage}
+              onLimitChange={changePageSize}
+            />
+          </div>
         </main>
         <CardDrawer card={selected} config={config} open={drawerOpen} onClose={() => setDrawerOpen(false)} onSave={save} />
       </div>

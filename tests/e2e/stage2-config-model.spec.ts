@@ -90,6 +90,27 @@ test('大量卡片只滚动列表区域且分页与控制栏保持可见', async
     '窄屏大量卡片时分页内部控件应全部在视口内。若失败：检查 main-panel grid 行是否因 ErrorMessage 缺席而错位',
   ).toBe(true);
   expect(
+    await page.evaluate(() => {
+      const pagination = document.querySelector('.pagination');
+      const controls = document.querySelector('.pagination-controls');
+      const select = document.querySelector('.pagination select');
+      const buttons = Array.from(document.querySelectorAll('.pagination .button'));
+      if (!pagination || !controls || !select || buttons.length !== 2) return false;
+      const paginationRect = pagination.getBoundingClientRect();
+      const controlsRect = controls.getBoundingClientRect();
+      const selectRect = select.getBoundingClientRect();
+      const buttonRects = buttons.map((button) => button.getBoundingClientRect());
+      return (
+        paginationRect.height <= 96 &&
+        controlsRect.width <= paginationRect.width &&
+        selectRect.width < paginationRect.width * 0.55 &&
+        buttonRects.every((rect) => rect.width < paginationRect.width * 0.45) &&
+        buttonRects.every((rect) => Math.abs(rect.top - selectRect.top) <= 2)
+      );
+    }),
+    '竖屏分页应是紧凑工具条而不是全宽表单块。若失败：检查窄屏分页规则是否把 select 和按钮强制设为 100% 宽',
+  ).toBe(true);
+  expect(
     await page.evaluate(() => document.documentElement.scrollHeight <= document.documentElement.clientHeight),
     '大量卡片时浏览器页面本身不应滚动。若失败：检查 app/workspace 是否固定到视口高度',
   ).toBe(true);
