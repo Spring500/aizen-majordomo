@@ -58,6 +58,7 @@ test('阶段 2 配置驱动字段、状态和过滤路径可用', async ({ page 
 });
 
 test('大量卡片只滚动列表区域且分页与控制栏保持可见', async ({ page }) => {
+  await page.setViewportSize({ width: 702, height: 698 });
   await page.goto('/');
   await page.evaluate(async () => {
     for (let index = 0; index < 60; index += 1) {
@@ -78,6 +79,16 @@ test('大量卡片只滚动列表区域且分页与控制栏保持可见', async
     page.getByRole('navigation', { name: '卡片分页' }),
     '大量卡片时分页应保持在主面板底部可见。若失败：检查分页是否仍被卡片列表推到滚动区域底部',
   ).toBeVisible();
+  expect(
+    await page.evaluate(() => {
+      const controls = Array.from(document.querySelectorAll('.pagination > *'));
+      return controls.every((control) => {
+        const rect = control.getBoundingClientRect();
+        return rect.top >= 0 && rect.bottom <= window.innerHeight;
+      });
+    }),
+    '窄屏大量卡片时分页内部控件应全部在视口内。若失败：检查 main-panel grid 行是否因 ErrorMessage 缺席而错位',
+  ).toBe(true);
   expect(
     await page.evaluate(() => document.documentElement.scrollHeight <= document.documentElement.clientHeight),
     '大量卡片时浏览器页面本身不应滚动。若失败：检查 app/workspace 是否固定到视口高度',
