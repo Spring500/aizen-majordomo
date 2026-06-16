@@ -1,0 +1,57 @@
+{
+  "cardTypes": [
+    {
+      "id": "review",
+      "name": "Review",
+      "description": "自定义核验事项",
+      "enabled": true,
+      "system": true,
+      "position": 1,
+      "fields": [
+        { "id": "case_subject", "label": "核验主题", "kind": "text", "required": true, "system": true },
+        {
+          "id": "audit_domain",
+          "label": "审查领域",
+          "kind": "enum",
+          "defaultValue": "privacy",
+          "system": true,
+          "options": [
+            { "value": "privacy", "label": "隐私合规" },
+            { "value": "finance", "label": "财务控制" },
+            { "value": "security", "label": "安全审计" }
+          ]
+        },
+        { "id": "evidence_url", "label": "证据链接", "kind": "text", "system": true },
+        { "id": "needs_followup", "label": "需要跟进", "kind": "boolean", "defaultValue": false, "system": true }
+      ],
+      "actions": [
+        {
+          "id": "create",
+          "label": "创建",
+          "kind": "create",
+          "system": true,
+          "writableFields": ["case_subject", "audit_domain", "evidence_url", "needs_followup"],
+          "requiredFields": ["case_subject"]
+        },
+        {
+          "id": "update",
+          "label": "编辑",
+          "kind": "update",
+          "system": true,
+          "writableFields": ["case_subject", "audit_domain", "evidence_url", "needs_followup"]
+        }
+      ]
+    }
+  ],
+  "statuses": [
+    { "id": "triage", "name": "分拣", "category": "todo", "position": 0, "color": "#64748b", "enabled": true, "system": true },
+    { "id": "approved", "name": "已批准", "category": "done", "position": 1, "color": "#059669", "enabled": true, "system": true },
+    { "id": "rejected", "name": "已拒绝", "category": "done", "position": 2, "color": "#dc2626", "enabled": true, "system": true }
+  ],
+  "transitions": [
+    { "id": "approve", "name": "批准", "cardType": "review", "fromStatus": "triage", "toStatus": "approved", "writableFields": [], "system": true, "enabled": true },
+    { "id": "reject", "name": "拒绝", "cardType": "review", "fromStatus": "triage", "toStatus": "rejected", "writableFields": [], "system": true, "enabled": true }
+  ],
+  "hookActionModels": [],
+  "hooks": []
+}

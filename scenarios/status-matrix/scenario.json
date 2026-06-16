@@ -1,0 +1,13 @@
+{
+  "id": "status-matrix",
+  "name": "状态矩阵",
+  "description": "验证状态配置参与建卡、读取和筛选。",
+  "config": "config.json",
+  "seed": { "type": "ts", "path": "seed.ts" },
+  "readme": "README.md",
+  "tags": ["stage2", "status", "filter"],
+  "expected": {
+    "cardTypes": ["task"],
+    "statuses": ["triage", "doing", "blocked", "done"]
+  }
+}

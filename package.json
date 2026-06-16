@@ -15,6 +15,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "scenario:list": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts list",
+    "scenario:prepare": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts prepare",
+    "scenario:start": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts start",
+    "scenario:copy-db": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts copy-db",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web/tsconfig.json",
     "prepare": "husky && git config merge.ff false"
   },

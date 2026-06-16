@@ -1,0 +1,16 @@
+{
+  "id": "default-sample",
+  "name": "默认样例配置",
+  "description": "验证产品默认 task、decision、memo 配置路径。",
+  "config": "config.json",
+  "seed": {
+    "type": "ts",
+    "path": "seed.ts"
+  },
+  "readme": "README.md",
+  "tags": ["stage2", "default", "config-driven"],
+  "expected": {
+    "cardTypes": ["task", "decision", "memo"],
+    "statuses": ["default", "active", "waiting", "resolved", "done"]
+  }
+}

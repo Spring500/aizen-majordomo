@@ -1,0 +1,49 @@
+{
+  "cardTypes": [
+    {
+      "id": "task",
+      "name": "Task",
+      "enabled": true,
+      "system": true,
+      "position": 1,
+      "fields": [
+        { "id": "title", "label": "标题", "kind": "text", "required": true, "system": true },
+        {
+          "id": "risk_level",
+          "label": "风险分级",
+          "kind": "enum",
+          "defaultValue": "normal",
+          "system": true,
+          "options": [
+            { "value": "low", "label": "低" },
+            { "value": "normal", "label": "普通" },
+            { "value": "high", "label": "高" }
+          ]
+        },
+        {
+          "id": "impact",
+          "label": "影响面",
+          "kind": "enum",
+          "defaultValue": "team",
+          "system": true,
+          "options": [
+            { "value": "local", "label": "局部" },
+            { "value": "team", "label": "团队" },
+            { "value": "global", "label": "全局" }
+          ]
+        }
+      ],
+      "actions": [
+        { "id": "create", "label": "创建", "kind": "create", "system": true, "writableFields": ["title", "risk_level", "impact"], "requiredFields": ["title"] },
+        { "id": "update", "label": "编辑", "kind": "update", "system": true, "writableFields": ["title", "risk_level", "impact"] }
+      ]
+    }
+  ],
+  "statuses": [
+    { "id": "default", "name": "默认", "category": "todo", "position": 0, "color": "#64748b", "enabled": true, "system": true },
+    { "id": "done", "name": "完成", "category": "done", "position": 1, "color": "#059669", "enabled": true, "system": true }
+  ],
+  "transitions": [],
+  "hookActionModels": [],
+  "hooks": []
+}

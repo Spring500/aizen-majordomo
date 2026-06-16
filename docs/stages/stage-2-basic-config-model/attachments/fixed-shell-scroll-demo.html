@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>固定工作台与列表滚动区 Demo</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --panel: #fff;
+        --panel-soft: #f9fafb;
+        --line: #d9dee5;
+        --line-strong: #bcc5d0;
+        --text: #17202a;
+        --muted: #667385;
+        --quiet: #8a96a8;
+        --green: #237a57;
+        --green-soft: #e7f4ee;
+        --blue: #2c66a0;
+        --blue-soft: #e8f1fb;
+        --shadow: 0 18px 50px rgba(23, 32, 42, 0.14);
+        color-scheme: light;
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overflow: hidden;
+      }
+
+      body {
+        background: var(--bg);
+        color: var(--text);
+        letter-spacing: 0;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .app {
+        width: 100vw;
+        height: 100dvh;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: 52px minmax(0, 1fr);
+        overflow: hidden;
+      }
+
+      .topbar {
+        min-width: 0;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 0 18px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .brand {
+        min-width: 214px;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .brand strong {
+        font-size: 15px;
+        font-weight: 760;
+      }
+
+      .brand span,
+      .meta,
+      .save-state {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .search {
+        position: relative;
+        flex: 1;
+        max-width: 520px;
+      }
+
+      .search input {
+        width: 100%;
+        height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 0 12px 0 32px;
+        background: var(--panel-soft);
+        color: var(--muted);
+      }
+
+      .search span {
+        position: absolute;
+        left: 11px;
+        top: 7px;
+        color: var(--quiet);
+        font-size: 14px;
+      }
+
+      .topbar-actions {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .button,
+      .icon-button {
+        height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        padding: 0 12px;
+        background: #fff;
+        color: #1f2a37;
+      }
+
+      .button.primary {
+        border-color: #1d5f45;
+        background: #1f7a55;
+        color: #fff;
+        font-weight: 680;
+      }
+
+      .workspace {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 230px minmax(520px, 1fr) 430px;
+        overflow: hidden;
+      }
+
+      .sidebar {
+        min-height: 0;
+        display: grid;
+        grid-template-rows: minmax(0, 1fr) auto;
+        border-right: 1px solid var(--line);
+        background: #eef2f5;
+        overflow: hidden;
+      }
+
+      .sidebar-scroll {
+        min-height: 0;
+        overflow: auto;
+        padding: 16px;
+      }
+
+      .sidebar-section + .sidebar-section {
+        margin-top: 18px;
+      }
+
+      .sidebar h2 {
+        margin: 0 0 9px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 780;
+        text-transform: uppercase;
+      }
+
+      .filter-list {
+        display: grid;
+        gap: 5px;
+      }
+
+      .filter-item {
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: #1f2a37;
+        font-size: 13px;
+        text-align: left;
+      }
+
+      .filter-item.active {
+        background: #fff;
+        box-shadow: inset 0 0 0 1px var(--line);
+      }
+
+      .condition-row {
+        display: grid;
+        gap: 7px;
+        margin-bottom: 6px;
+        padding: 9px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .field-name {
+        font-size: 13px;
+        font-weight: 720;
+      }
+
+      .field-meta {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .condition-controls {
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        gap: 7px;
+      }
+
+      .condition-controls select,
+      .condition-controls input {
+        width: 100%;
+        height: 32px;
+        min-width: 0;
+        padding: 0 8px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        font-size: 13px;
+      }
+
+      .sidebar-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--line);
+        background: #eef2f5;
+      }
+
+      .main-panel {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        overflow: hidden;
+        padding: 16px 18px 0;
+      }
+
+      .board-header {
+        display: flex;
+        align-items: end;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 12px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-size: 20px;
+        line-height: 1.2;
+        font-weight: 780;
+      }
+
+      .board-title p {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .error-slot {
+        min-height: 0;
+      }
+
+      .card-list-scroll {
+        min-height: 0;
+        overflow: auto;
+        padding-right: 2px;
+      }
+
+      .card-list {
+        display: grid;
+        gap: 8px;
+        padding-bottom: 12px;
+      }
+
+      .card-row {
+        display: grid;
+        grid-template-columns: 92px minmax(0, 1fr) 104px 92px;
+        align-items: center;
+        gap: 12px;
+        min-height: 74px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--panel);
+        color: var(--text);
+        text-align: left;
+      }
+
+      .card-main {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+
+      .card-main strong,
+      .card-main small {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .card-main strong {
+        font-size: 14px;
+      }
+
+      .card-main small,
+      .priority,
+      .assignee {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 0;
+        height: 24px;
+        padding: 0 8px;
+        border-radius: 999px;
+        background: var(--blue-soft);
+        color: var(--blue);
+        font-size: 12px;
+        font-weight: 680;
+        white-space: nowrap;
+      }
+
+      .pagination {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin: 0 -18px;
+        padding: 10px 18px;
+        border-top: 1px solid var(--line);
+        background: var(--bg);
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .pagination-summary {
+        margin-right: auto;
+      }
+
+      .pagination select {
+        height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        padding: 0 8px;
+      }
+
+      .drawer {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto minmax(0, 1fr) auto;
+        border-left: 1px solid var(--line);
+        background: var(--panel);
+        box-shadow: var(--shadow);
+        overflow: hidden;
+      }
+
+      .drawer-head {
+        padding: 16px 18px 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .drawer-head h2 {
+        margin: 10px 0 0;
+        font-size: 18px;
+        line-height: 1.3;
+      }
+
+      .drawer-body {
+        min-height: 0;
+        overflow: auto;
+        padding: 16px 18px;
+      }
+
+      .drawer-body .field {
+        display: grid;
+        gap: 6px;
+        margin-bottom: 14px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .drawer-body input,
+      .drawer-body textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+      }
+
+      .drawer-body input {
+        height: 34px;
+      }
+
+      .drawer-body textarea {
+        min-height: 120px;
+      }
+
+      .drawer-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 12px 18px;
+        border-top: 1px solid var(--line);
+        background: var(--panel-soft);
+      }
+
+      @media (max-width: 860px) {
+        .topbar {
+          gap: 8px;
+          padding: 0 12px;
+        }
+
+        .brand {
+          min-width: 0;
+          flex: 1;
+        }
+
+        .brand span,
+        .search {
+          display: none;
+        }
+
+        .workspace {
+          grid-template-columns: 1fr;
+        }
+
+        .sidebar {
+          position: fixed;
+          inset: 52px auto 0 0;
+          z-index: 6;
+          width: min(320px, 88vw);
+          transform: translateX(-104%);
+          box-shadow: var(--shadow);
+        }
+
+        .sidebar.open {
+          transform: translateX(0);
+        }
+
+        .drawer {
+          position: fixed;
+          inset: 52px 0 0 auto;
+          z-index: 5;
+          width: min(430px, 100vw);
+          transform: translateX(104%);
+        }
+
+        .main-panel {
+          padding: 14px 12px 0;
+        }
+
+        .pagination {
+          margin: 0 -12px;
+          padding: 10px 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <div class="brand"><strong>aizen-majordomo</strong><span>本地工作台</span></div>
+        <div class="search"><span>⌕</span><input value="搜索暂未启用" /></div>
+        <div class="topbar-actions">
+          <button class="button">刷新</button>
+          <button class="button primary">新建卡片</button>
+        </div>
+      </header>
+
+      <div class="workspace">
+        <aside class="sidebar">
+          <div class="sidebar-scroll">
+            <section class="sidebar-section">
+              <h2>类型</h2>
+              <div class="filter-list">
+                <button class="filter-item active"><span>全部卡片</span><span>1000</span></button>
+                <button class="filter-item"><span>Task</span><span>1000</span></button>
+              </div>
+            </section>
+
+            <section class="sidebar-section">
+              <h2>字段条件</h2>
+              <div class="condition-row">
+                <div>
+                  <div class="field-name">风险等级</div>
+                  <div class="field-meta">枚举 enum</div>
+                </div>
+                <div class="condition-controls">
+                  <select><option>等于</option></select>
+                  <select><option>高</option></select>
+                </div>
+              </div>
+              <div class="condition-row">
+                <div>
+                  <div class="field-name">负责人</div>
+                  <div class="field-meta">参与者 actor</div>
+                </div>
+                <div class="condition-controls">
+                  <select><option>等于</option></select>
+                  <input value="user-9" />
+                </div>
+              </div>
+              <button class="button" style="width: 100%; margin-top: 8px">添加筛选条件</button>
+            </section>
+
+            <section class="sidebar-section">
+              <h2>状态</h2>
+              <div class="filter-list">
+                <button class="filter-item active"><span>全部状态</span></button>
+                <button class="filter-item"><span>默认</span></button>
+                <button class="filter-item"><span>处理中</span></button>
+                <button class="filter-item"><span>完成</span></button>
+              </div>
+            </section>
+          </div>
+          <div class="sidebar-actions">
+            <button class="button">清空</button>
+            <button class="button primary">应用筛选</button>
+          </div>
+        </aside>
+
+        <main class="main-panel">
+          <div class="board-header">
+            <div class="board-title">
+              <h1>本地单人看板</h1>
+              <p>1000 张卡片，按创建时间倒序排列。页面本身不滚动，只有下方列表滚动。</p>
+            </div>
+          </div>
+          <div class="error-slot"></div>
+          <div class="card-list-scroll">
+            <section class="card-list" aria-label="卡片列表">
+              <script>
+                for (let i = 1000; i >= 901; i -= 1) {
+                  document.write(`
+                    <button class="card-row" type="button">
+                      <span class="badge">task</span>
+                      <span class="card-main">
+                        <strong>大量数据卡 ${i}</strong>
+                        <small>用于阶段 2 大量数据冒烟 ${i}</small>
+                      </span>
+                      <span class="priority">P${i % 3}</span>
+                      <span class="assignee">user-${i % 10}</span>
+                    </button>
+                  `);
+                }
+              </script>
+            </section>
+          </div>
+          <nav class="pagination" aria-label="卡片分页">
+            <span class="pagination-summary">第 51-100 张 / 共 1000 张</span>
+            <select aria-label="每页数量">
+              <option>50 / 页</option>
+              <option>100 / 页</option>
+              <option>200 / 页</option>
+              <option>500 / 页</option>
+            </select>
+            <button class="button">上一页</button>
+            <button class="button">下一页</button>
+          </nav>
+        </main>
+
+        <aside class="drawer">
+          <div class="drawer-head">
+            <span class="badge">task</span>
+            <h2>大量数据卡 950</h2>
+          </div>
+          <div class="drawer-body">
+            <label class="field"><span>标题</span><input value="大量数据卡 950" /></label>
+            <label class="field"><span>正文</span><textarea>详情抽屉内部独立滚动；主列表滚动不会影响顶部栏、左侧筛选或分页。</textarea></label>
+            <label class="field"><span>负责人</span><input value="user-9" /></label>
+            <label class="field"><span>风险等级</span><input value="high" /></label>
+            <label class="field"><span>备注</span><textarea></textarea></label>
+          </div>
+          <div class="drawer-foot">
+            <span class="save-state">配置允许字段可编辑</span>
+            <button class="button primary">保存</button>
+          </div>
+        </aside>
+      </div>
+    </div>
+  </body>
+</html>

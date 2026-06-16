@@ -1,26 +1,47 @@
-import { useEffect, useState } from 'react';
-import type { CardType } from '../types.ts';
+import { useEffect, useMemo, useState } from 'react';
+import type { AppConfig, CardTypeConfig } from '../types.ts';
+import { DynamicFieldInput } from './DynamicFields.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
+
+function actionFields(cardType: CardTypeConfig | undefined, actionId: string) {
+  const action = cardType?.actions.find((item) => item.id === actionId && item.enabled !== false);
+  return action?.writableFields.map((fieldId) => cardType?.fields.find((field) => field.id === fieldId)).filter(Boolean) ?? [];
+}
 
 export function NewCardDialog({
   open,
+  config,
   onClose,
   onCreate,
 }: {
   open: boolean;
+  config: AppConfig;
   onClose: () => void;
-  onCreate: (input: { type: CardType; title: string; body: string; options?: string[] }) => Promise<void>;
+  onCreate: (input: { type: string; status?: string; fields: Record<string, unknown> }) => Promise<void>;
 }) {
-  const [type, setType] = useState<CardType>('task');
-  const [title, setTitle] = useState('');
-  const [body, setBody] = useState('');
-  const [optionsText, setOptionsText] = useState('');
+  const enabledTypes = config.cardTypes.filter((item) => item.enabled !== false);
+  const enabledStatuses = config.statuses.filter((item) => item.enabled !== false);
+  const [type, setType] = useState(enabledTypes[0]?.id ?? 'task');
+  const [status, setStatus] = useState('default');
+  const [fields, setFields] = useState<Record<string, unknown>>({});
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
 
+  const cardType = enabledTypes.find((item) => item.id === type) ?? enabledTypes[0];
+  const fieldsToRender = useMemo(() => actionFields(cardType, 'create'), [cardType]);
+
   useEffect(() => {
+    if (open && cardType) {
+      setType(cardType.id);
+      setStatus('default');
+      const defaults: Record<string, unknown> = {};
+      for (const field of fieldsToRender) {
+        if (field?.defaultValue !== undefined) defaults[field.id] = field.defaultValue;
+      }
+      setFields(defaults);
+    }
     if (!open) setError('');
-  }, [open]);
+  }, [open, cardType?.id]);
 
   if (!open) return null;
 
@@ -28,22 +49,8 @@ export function NewCardDialog({
     try {
       setError('');
       setCreating(true);
-      await onCreate({
-        type,
-        title,
-        body,
-        options:
-          type === 'decision'
-            ? optionsText
-                .split('\n')
-                .map((item) => item.trim())
-                .filter(Boolean)
-            : undefined,
-      });
-      setType('task');
-      setTitle('');
-      setBody('');
-      setOptionsText('');
+      await onCreate({ type, status, fields });
+      setFields({});
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : '创建失败');
@@ -65,29 +72,33 @@ export function NewCardDialog({
           <ErrorMessage message={error} />
           <label className="field">
             <span>类型</span>
-            <select aria-label="类型" value={type} onChange={(event) => setType(event.target.value as CardType)}>
-              <option value="task">task</option>
-              <option value="decision">decision</option>
-              <option value="memo">memo</option>
+            <select aria-label="类型" value={type} onChange={(event) => setType(event.target.value)}>
+              {enabledTypes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
             </select>
           </label>
           <label className="field">
-            <span>标题</span>
-            <input aria-label="标题" value={title} onChange={(event) => setTitle(event.target.value)} />
+            <span>Status</span>
+            <select aria-label="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
+              {enabledStatuses.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
           </label>
-          <label className="field">
-            <span>正文</span>
-            <textarea aria-label="正文" value={body} onChange={(event) => setBody(event.target.value)} />
-          </label>
-          {type === 'decision' && (
-            <label className="field">
-              <span>Options，每行一项</span>
-              <textarea
-                aria-label="Options，每行一项"
-                value={optionsText}
-                onChange={(event) => setOptionsText(event.target.value)}
+          {fieldsToRender.map((field) =>
+            field ? (
+              <DynamicFieldInput
+                key={field.id}
+                field={field}
+                value={fields[field.id]}
+                onChange={(value) => setFields((current) => ({ ...current, [field.id]: value }))}
               />
-            </label>
+            ) : null,
           )}
         </div>
         <footer>
