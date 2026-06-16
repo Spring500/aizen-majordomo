@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createDb } from '../../src/db/index.ts';
 import { createTestApp, readJson } from './helpers.ts';
 import { initializeConfig } from '../../src/config/initialize.ts';
-import { SAMPLE_CONFIG } from '../../src/config/sample.ts';
+import { loadSeedConfig } from '../../src/config/load-seed.ts';
 import { validateConfig } from '../../src/config/validation.ts';
 
 describe('阶段 2 配置模型', () => {
@@ -46,10 +46,11 @@ describe('阶段 2 配置模型', () => {
   });
 
   it('样例配置能表达字段、动作、decision 回复能力和 risk_level 扩展字段', () => {
-    const decision = SAMPLE_CONFIG.cardTypes.find((item) => item.id === 'decision');
-    const task = SAMPLE_CONFIG.cardTypes.find((item) => item.id === 'task');
+    const config = loadSeedConfig();
+    const decision = config.cardTypes.find((item) => item.id === 'decision');
+    const task = config.cardTypes.find((item) => item.id === 'task');
 
-    expect(decision, '样例配置应包含 decision。若失败：检查 SAMPLE_CONFIG.cardTypes').toBeTruthy();
+    expect(decision, '样例配置应包含 decision。若失败：检查 default-sample/config.json').toBeTruthy();
     expect(
       decision?.fields.some((field) => field.id === 'reply'),
       'decision 应声明 reply 字段。若失败：检查 decision 字段能力',
@@ -65,7 +66,7 @@ describe('阶段 2 配置模型', () => {
   });
 
   it('无效配置引用会校验失败', () => {
-    const invalid = structuredClone(SAMPLE_CONFIG);
+    const invalid = structuredClone(loadSeedConfig());
     const firstAction = invalid.cardTypes[0]?.actions[0];
     if (!firstAction) throw new Error('测试前置失败：样例配置缺少第一个 action');
     firstAction.writableFields.push('missing_field');

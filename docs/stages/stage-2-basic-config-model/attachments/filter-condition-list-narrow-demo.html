@@ -1,0 +1,436 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>窄屏筛选条件列表讨论稿</title>
+    <style>
+      :root {
+        --bg: #f4f6f8;
+        --panel: #ffffff;
+        --panel-soft: #f9fafb;
+        --line: #d9dee5;
+        --line-strong: #bcc5d0;
+        --text: #17202a;
+        --muted: #667385;
+        --ink: #1f2a37;
+        --green: #237a57;
+        --green-soft: #e7f4ee;
+        --yellow: #8a650d;
+        --yellow-soft: #fff3cf;
+        --shadow: 0 18px 50px rgba(23, 32, 42, 0.14);
+        font-family: Inter, "Segoe UI", "Microsoft YaHei", sans-serif;
+        color: var(--text);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--bg);
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      .app {
+        min-height: 100vh;
+        display: grid;
+        grid-template-rows: 52px 1fr;
+      }
+
+      .topbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 12px;
+        border-bottom: 1px solid var(--line);
+        background: #fff;
+      }
+
+      .icon-button,
+      .button {
+        height: 34px;
+        border: 1px solid var(--line-strong);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .icon-button {
+        width: 32px;
+        padding: 0;
+        font-size: 20px;
+      }
+
+      .button {
+        padding: 0 10px;
+      }
+
+      .button.primary {
+        border-color: #1d5f45;
+        background: #1f7a55;
+        color: #fff;
+        font-weight: 680;
+      }
+
+      .brand {
+        min-width: 0;
+        flex: 1;
+      }
+
+      .brand strong {
+        display: block;
+        font-size: 15px;
+        line-height: 1.1;
+      }
+
+      .brand span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .workspace {
+        position: relative;
+        min-height: 0;
+      }
+
+      .main-panel {
+        padding: 16px 18px;
+      }
+
+      .board-title h1 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .board-title p,
+      .hint {
+        margin: 4px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .empty-state {
+        display: grid;
+        place-items: center;
+        min-height: 180px;
+        margin-top: 12px;
+        padding: 18px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.56);
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .responsive-scrim {
+        position: fixed;
+        inset: 0;
+        z-index: 4;
+        border: 0;
+        background: rgba(23, 32, 42, 0.36);
+      }
+
+      .sidebar {
+        position: fixed;
+        inset: 52px auto 0 0;
+        z-index: 6;
+        width: min(320px, 88vw);
+        overflow: auto;
+        padding: 16px;
+        background: #eef2f5;
+        box-shadow: var(--shadow);
+      }
+
+      .sidebar-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 14px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .sidebar-head h2 {
+        margin: 0 0 2px;
+        font-size: 16px;
+      }
+
+      .sidebar-head span {
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .sidebar-section + .sidebar-section {
+        margin-top: 18px;
+      }
+
+      .sidebar-section h3 {
+        margin: 0 0 9px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 780;
+        text-transform: uppercase;
+      }
+
+      .filter-list,
+      .condition-list {
+        display: grid;
+        gap: 6px;
+      }
+
+      .filter-item {
+        min-height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--ink);
+        font-size: 13px;
+        text-align: left;
+      }
+
+      .filter-item.active {
+        background: #fff;
+        box-shadow: inset 0 0 0 1px var(--line);
+      }
+
+      .condition-row {
+        display: grid;
+        gap: 8px;
+        padding: 10px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+      }
+
+      .condition-head,
+      .field-summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .condition-title {
+        font-size: 13px;
+        font-weight: 760;
+      }
+
+      .remove {
+        width: 28px;
+        height: 28px;
+        border: 0;
+        border-radius: 6px;
+        background: var(--panel-soft);
+      }
+
+      .type-badge {
+        display: inline-flex;
+        align-items: center;
+        min-height: 20px;
+        padding: 0 6px;
+        border-radius: 999px;
+        background: #edf2f7;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 760;
+        white-space: nowrap;
+      }
+
+      .type-badge.unsupported {
+        background: var(--yellow-soft);
+        color: var(--yellow);
+      }
+
+      .condition-controls {
+        display: grid;
+        gap: 8px;
+      }
+
+      select,
+      input {
+        width: 100%;
+        height: 34px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--text);
+        padding: 0 8px;
+        font-size: 13px;
+      }
+
+      select:disabled,
+      input:disabled {
+        background: var(--panel-soft);
+        color: var(--muted);
+      }
+
+      .unsupported-note {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        min-height: 32px;
+        padding: 7px 8px;
+        border: 1px dashed #d6b15a;
+        border-radius: 6px;
+        background: #fff8df;
+        color: #76540b;
+        font-size: 13px;
+      }
+
+      .sidebar-actions {
+        position: sticky;
+        bottom: -16px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin: 18px -16px -16px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--line);
+        background: #eef2f5;
+      }
+
+      .add-condition {
+        width: 100%;
+        height: 34px;
+        border: 1px dashed var(--line-strong);
+        border-radius: 6px;
+        background: #fff;
+        color: #1f5f48;
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <button class="icon-button" type="button" aria-label="筛选">☰</button>
+        <div class="brand">
+          <strong>aizen-majordomo</strong>
+          <span>本地工作台</span>
+        </div>
+        <button class="button" type="button">刷新</button>
+        <button class="button primary" type="button">新建卡片</button>
+      </header>
+
+      <div class="workspace">
+        <button class="responsive-scrim" type="button" aria-label="关闭覆盖层"></button>
+
+        <aside class="sidebar" aria-label="筛选">
+          <div class="sidebar-head">
+            <div>
+              <h2>筛选</h2>
+              <span>左侧抽屉，宽度沿用 min(320px, 88vw)</span>
+            </div>
+            <button class="icon-button" type="button" aria-label="关闭筛选">×</button>
+          </div>
+
+          <section class="sidebar-section">
+            <h3>类型</h3>
+            <div class="filter-list">
+              <button class="filter-item active" type="button"><span>全部卡片</span><span>8</span></button>
+              <button class="filter-item" type="button"><span>Review</span><span>3</span></button>
+            </div>
+          </section>
+
+          <section class="sidebar-section">
+            <h3>状态</h3>
+            <div class="filter-list">
+              <button class="filter-item active" type="button"><span>全部状态</span></button>
+              <button class="filter-item" type="button"><span>分拣</span></button>
+              <button class="filter-item" type="button"><span>已批准</span></button>
+              <button class="filter-item" type="button"><span>已拒绝</span></button>
+            </div>
+          </section>
+
+          <section class="sidebar-section">
+            <h3>字段条件</h3>
+            <div class="condition-list">
+              <div class="condition-row">
+                <div class="condition-head">
+                  <span class="condition-title">条件 1</span>
+                  <button class="remove" type="button" aria-label="移除条件">×</button>
+                </div>
+                <div class="field-summary">
+                  <span>审查领域</span>
+                  <span class="type-badge">枚举 enum</span>
+                </div>
+                <div class="condition-controls">
+                  <select aria-label="选择字段">
+                    <option>审查领域 · 枚举 enum</option>
+                    <option>核验主题 · 文本 text</option>
+                    <option>证据链接 · 文本 text</option>
+                    <option>需要跟进 · 布尔 boolean</option>
+                    <option>附件元数据 · JSON · ! 暂未支持</option>
+                    <option>截止时间 · 日期 datetime · ! 暂未支持</option>
+                  </select>
+                  <select aria-label="选择操作符">
+                    <option>等于</option>
+                  </select>
+                  <select aria-label="选择值">
+                    <option>隐私合规</option>
+                    <option>财务控制</option>
+                    <option>安全审计</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="condition-row">
+                <div class="condition-head">
+                  <span class="condition-title">条件 2</span>
+                  <button class="remove" type="button" aria-label="移除条件">×</button>
+                </div>
+                <div class="field-summary">
+                  <span>附件元数据</span>
+                  <span class="type-badge unsupported">! JSON 暂未支持</span>
+                </div>
+                <div class="condition-controls">
+                  <select aria-label="选择字段">
+                    <option>附件元数据 · JSON · ! 暂未支持</option>
+                    <option>截止时间 · 日期 datetime · ! 暂未支持</option>
+                    <option>审查领域 · 枚举 enum</option>
+                  </select>
+                  <select disabled aria-label="选择操作符">
+                    <option>暂未支持</option>
+                  </select>
+                </div>
+                <div class="unsupported-note">
+                  <strong>!</strong>
+                  <span>该字段类型已在配置中声明，但阶段 2 尚未定义过滤语义。</span>
+                </div>
+              </div>
+            </div>
+
+            <button class="add-condition" type="button">添加筛选条件</button>
+          </section>
+
+          <div class="sidebar-actions">
+            <button class="button" type="button">清空</button>
+            <button class="button primary" type="button">应用筛选</button>
+          </div>
+        </aside>
+
+        <main class="main-panel">
+          <div class="board-title">
+            <h1>本地单人看板</h1>
+            <p>筛选抽屉打开时，主内容被遮罩覆盖；编辑字段条件不会自动关闭抽屉。</p>
+          </div>
+          <div class="empty-state">卡片列表保持原位置，点击遮罩或关闭按钮返回。</div>
+        </main>
+      </div>
+    </div>
+  </body>
+</html>

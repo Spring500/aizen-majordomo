@@ -254,6 +254,12 @@ data/scenarios/<id>.prepared.db
 data/scenarios/<id>.runtime.db
 ```
 
+显式传入 `--port N` 时，为支持同一场景多端口并行观察，runtime db 使用端口隔离路径：
+
+```text
+data/scenarios/<id>.port<N>.runtime.db
+```
+
 3. 使用 runtime db 启动服务。
 4. 打印场景、地址、数据库、配置和 README 路径。
 

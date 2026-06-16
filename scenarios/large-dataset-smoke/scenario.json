@@ -1,0 +1,12 @@
+{
+  "id": "large-dataset-smoke",
+  "name": "1000 张卡大量数据冒烟",
+  "description": "验证字段值表和配置过滤在 1000 张卡下没有明显正确性问题。",
+  "config": "config.json",
+  "seed": { "type": "ts", "path": "seed.ts" },
+  "readme": "README.md",
+  "tags": ["stage2", "large-dataset", "filter"],
+  "expected": {
+    "cardCount": 1000
+  }
+}

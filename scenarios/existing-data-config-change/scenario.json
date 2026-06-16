@@ -1,0 +1,11 @@
+{
+  "id": "existing-data-config-change",
+  "name": "已有数据后的配置变化",
+  "description": "验证已有卡片后配置字段变化不会破坏历史数据读取。",
+  "phases": [
+    { "name": "before", "config": "config.before.json", "seed": { "type": "ts", "path": "seed.ts" } },
+    { "name": "after", "config": "config.after.json" }
+  ],
+  "readme": "README.md",
+  "tags": ["stage2", "config-change", "existing-data"]
+}

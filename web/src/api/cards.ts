@@ -31,6 +31,8 @@ export async function listCards(filters: CardFilters): Promise<ListCardsResponse
   if (filters.type) params.set('type', filters.type);
   if (filters.status) params.set('status', filters.status);
   if (filters.assignee) params.set('assignee', filters.assignee);
+  if (filters.limit) params.set('limit', String(filters.limit));
+  if (filters.offset) params.set('offset', String(filters.offset));
   for (const [fieldId, value] of Object.entries(filters.fields ?? {})) {
     if (value) params.set(`field.${fieldId}`, value);
   }

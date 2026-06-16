@@ -46,7 +46,10 @@ test('阶段 2 配置驱动字段、状态和过滤路径可用', async ({ page 
   ).toHaveCount(0);
 
   await filters.getByRole('button', { name: '全部状态', exact: true }).click();
-  await filters.getByLabel('筛选风险等级').selectOption('low');
+  await filters.getByRole('button', { name: '添加筛选条件' }).click();
+  await filters.getByLabel('选择筛选字段').selectOption('risk_level');
+  await filters.getByLabel('筛选风险等级的值').selectOption('low');
+  await filters.getByRole('button', { name: '应用筛选' }).click();
 
   await expect(
     page.getByRole('button', { name: /高风险配置卡/ }),

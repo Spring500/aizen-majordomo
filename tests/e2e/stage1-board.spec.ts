@@ -77,6 +77,10 @@ test('阶段 1 页面可创建、查看、编辑、筛选卡片并显示错误',
 test('阶段 1 窄屏布局保留筛选、详情抽屉、新建和错误提示能力', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 760 });
   await page.goto('/');
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth),
+    '窄屏首页不应出现横向滚动。若失败：检查移动端顶栏、筛选抽屉或详情抽屉是否撑宽页面',
+  ).toBe(true);
 
   await page.getByRole('button', { name: '新建卡片' }).click();
   let dialog = page.getByRole('region', { name: '新建卡片' });

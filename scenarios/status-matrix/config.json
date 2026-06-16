@@ -1,0 +1,33 @@
+{
+  "cardTypes": [
+    {
+      "id": "task",
+      "name": "Task",
+      "description": "状态矩阵事项",
+      "enabled": true,
+      "system": true,
+      "position": 1,
+      "fields": [
+        { "id": "title", "label": "标题", "kind": "text", "required": true, "system": true },
+        { "id": "body", "label": "正文", "kind": "longText", "system": true },
+        { "id": "assignee", "label": "负责人", "kind": "actor", "system": true }
+      ],
+      "actions": [
+        { "id": "create", "label": "创建", "kind": "create", "system": true, "writableFields": ["title", "body", "assignee"], "requiredFields": ["title"] },
+        { "id": "update", "label": "编辑", "kind": "update", "system": true, "writableFields": ["title", "body", "assignee"] }
+      ]
+    }
+  ],
+  "statuses": [
+    { "id": "triage", "name": "待分拣", "category": "todo", "position": 0, "color": "#64748b", "enabled": true, "system": true },
+    { "id": "doing", "name": "处理中", "category": "active", "position": 1, "color": "#2563eb", "enabled": true, "system": true },
+    { "id": "blocked", "name": "受阻", "category": "waiting", "position": 2, "color": "#d97706", "enabled": true, "system": true },
+    { "id": "done", "name": "完成", "category": "done", "position": 3, "color": "#059669", "enabled": true, "system": true }
+  ],
+  "transitions": [
+    { "id": "block", "name": "标记受阻", "cardType": "task", "fromStatus": null, "toStatus": "blocked", "writableFields": [], "system": true, "enabled": true },
+    { "id": "finish", "name": "完成", "cardType": "task", "fromStatus": null, "toStatus": "done", "writableFields": [], "system": true, "enabled": true }
+  ],
+  "hookActionModels": [],
+  "hooks": []
+}

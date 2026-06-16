@@ -1,0 +1,13 @@
+{
+  "id": "custom-review-flow",
+  "name": "自定义 Review 工作流",
+  "description": "验证前端和后端没有写死默认 task/decision/memo 配置。",
+  "config": "config.json",
+  "seed": { "type": "ts", "path": "seed.ts" },
+  "readme": "README.md",
+  "tags": ["stage2", "config-driven", "frontend"],
+  "expected": {
+    "cardTypes": ["review"],
+    "statuses": ["triage", "approved", "rejected"]
+  }
+}

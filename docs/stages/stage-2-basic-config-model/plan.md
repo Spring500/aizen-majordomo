@@ -4,7 +4,7 @@
 
 **Goal:** 交付基础配置模型：运行时配置以 SQLite 为事实来源，样例配置可初始化和校验，现有建卡、编辑、列表过滤和前端表单开始由配置驱动。
 
-**Architecture:** 后端继续使用 Hono + `node:sqlite`。配置由 TypeScript 样例定义作为默认种子，初始化时同步到 SQLite；运行时读取数据库配置。卡片业务字段统一进入 `card_field_values`，`cards` 只保留核心元数据和状态。前端启动时读取 `GET /config`，按 card type、field definition 和内置 `create/update` action 渲染新建与编辑表单。
+**Architecture:** 后端继续使用 Hono + `node:sqlite`。配置由 `scenarios/default-sample/config.json` 作为默认种子，或由 `CONFIG_SEED_PATH` 指定 JSON 种子，初始化时同步到 SQLite；运行时读取数据库配置。卡片业务字段统一进入 `card_field_values`，`cards` 只保留核心元数据和状态。前端启动时读取 `GET /config`，按 card type、field definition 和内置 `create/update` action 渲染新建与编辑表单。
 
 **Tech Stack:** Node.js >= 22.5、TypeScript ESM、Hono、SQLite `node:sqlite`、zod、React、Vite、Vitest、Playwright、pnpm。
 
@@ -22,9 +22,9 @@
 ## 0. 已确认决策
 
 - 开发必须在分支或 worktree 上进行，不在 `main` 直接实现。
-- 运行时配置以 SQLite 为事实来源；TypeScript 样例配置只作为默认种子、测试基准和审阅入口。
+- 运行时配置以 SQLite 为事实来源；默认配置种子来自 `scenarios/default-sample/config.json`，测试场景也使用 `scenarios/` 下的 JSON 配置。
 - 配置存储采用“核心实体表 + JSON 能力字段”：`card_types`、`statuses`、`transitions`、`hook_action_models`、`hooks` 是核心实体；字段能力、动作能力、match、action 参数用 JSON 表达。
-- 阶段 2 内置样例配置初始化采用同 id 覆盖更新，保证数据库配置与样例定义一致。
+- 阶段 2 配置种子初始化采用同 id 覆盖更新，保证数据库配置与种子定义一致。
 - 配置初始化和引用校验 fail fast；配置无效时初始化或启动失败。
 - 字段能力使用字段定义数组。字段定义描述字段本身；动作定义声明允许写入哪些字段。
 - 内置 `create` 动作用于 `POST /cards`；内置 `update` 动作用于 `PATCH /cards/{id}`。
@@ -36,6 +36,11 @@
 - 前端必须消费 `GET /config`，新建和编辑表单从配置动态渲染。
 - 默认配置和测试配置统一使用 `scenarios/` 下的 JSON 场景配置；不再维护独立 TypeScript 样例配置作为配置事实来源。
 - 人工验收采用场景 README 说明“场景内容、用途和可观察点”；交付说明不写入场景 README。
+- 配置化筛选采用“字段条件列表”：用户可逐条添加字段条件，字段候选来自当前配置，并在选择时展示字段类型；已定义但阶段 2 不支持过滤语义的字段也出现在候选中并标注“暂未支持”。
+- 字段条件列表采用紧凑行布局；未支持过滤的字段使用“未支持筛选”文案，不使用容易换行的 `! ... 暂未支持` 组合或大块警告说明。
+- 卡片列表展示不强制要求 `title`、`priority` 或 `assignee` 字段；当 `title` 为空或业务类型未定义标题字段时，列表使用配置字段生成最小可读主信息和副信息。
+- 大量数据列表采用显式分页，不做无限滚动；前端传递 `limit/offset`，默认每页 50，允许切换 50/100/200/500，筛选变化回到第一页。
+- 配置化筛选的宽屏和窄屏讨论稿归档到 `attachments/`，阶段 2 实现以正式代码和本计划为准。
 
 ## 1. 文件结构计划
 
@@ -43,14 +48,14 @@
 
 - Create: `src/config/types.ts`
   - 定义 `FieldDefinition`、`ActionDefinition`、`CardTypeConfig`、`StatusConfig`、`TransitionConfig`、`HookActionModelConfig`、`HookConfig`、`AppConfig`。
-- Create: `src/config/sample.ts`
-  - 定义阶段 2 样例配置：`task`、`decision`、`memo`、字段、动作、状态、流转、hook action model。
+- Create: `src/config/load-seed.ts`
+  - 从默认场景 JSON 或 `CONFIG_SEED_PATH` 读取配置种子。
 - Create: `src/config/validation.ts`
   - 使用 zod 和引用校验验证配置结构与内部引用。
 - Create: `src/config/repository.ts`
   - 读取、写入、覆盖初始化配置实体。
 - Create: `src/config/initialize.ts`
-  - 提供 `initializeConfig(db)`，同步样例配置并 fail fast 校验。
+  - 提供 `initializeConfig(db)`，同步配置种子并 fail fast 校验。
 - Create: `src/routes/config.ts`
   - 提供只读 `GET /config`。
 
@@ -99,9 +104,11 @@
 - Modify: `web/src/components/CardDrawer.tsx`
   - 根据当前卡类型的 `update.writableFields` 渲染编辑字段。
 - Modify: `web/src/components/SidebarFilters.tsx`
-  - 使用配置字段构造基础筛选入口，至少保持类型、状态、负责人等已有路径。
+  - 使用配置字段构造字段条件列表，保留类型和状态筛选；字段候选展示字段类型，未支持过滤语义的字段可见但不能应用为查询条件。
 - Modify: `web/src/components/CardList.tsx`
-  - 从 `fields.title/body/priority/assignee/lane` 读取展示值，保留扁平字段兼容。
+  - 使用配置字段生成最小可读列表信息；兼容阶段 1 扁平字段，但不把 `title`、`priority`、`assignee` 作为所有业务类型的强制字段。
+- Create: `web/src/components/CardPagination.tsx`
+  - 渲染显式分页摘要、每页数量和上一页/下一页。
 
 ### 测试
 
@@ -125,6 +132,12 @@
   - 定义阶段 2 场景化配置测试规格。
 - Create: `docs/stages/stage-2-basic-config-model/scenario-config-testing-plan.md`
   - 定义补充规格的实施计划。
+- Create: `docs/stages/stage-2-basic-config-model/attachments/filter-condition-list-wide-demo.html`
+  - 归档配置化筛选条件列表的宽屏布局讨论稿。
+- Create: `docs/stages/stage-2-basic-config-model/attachments/filter-condition-list-narrow-demo.html`
+  - 归档配置化筛选条件列表的窄屏抽屉布局讨论稿。
+- Create: `docs/stages/stage-2-basic-config-model/attachments/filter-condition-list-compact-demo.html`
+  - 归档筛选条件列表紧凑版布局讨论稿。
 
 ### 场景化配置测试
 
@@ -515,11 +528,12 @@ pnpm test
 
 Expected: 现有 Vitest 通过。
 
-### Task 2: 建立配置类型、样例和校验
+### Task 2: 建立配置类型、默认场景配置和校验
 
 **Files:**
 - Create: `src/config/types.ts`
-- Create: `src/config/sample.ts`
+- Create: `src/config/load-seed.ts`
+- Create: `scenarios/default-sample/config.json`
 - Create: `src/config/validation.ts`
 - Create: `tests/http/config.test.ts`
 
@@ -527,9 +541,9 @@ Expected: 现有 Vitest 通过。
 
 Define FieldDefinition、ActionDefinition、CardTypeConfig、StatusConfig、TransitionConfig、HookActionModelConfig、HookConfig、AppConfig.
 
-- [ ] **Step 2: 写样例配置**
+- [ ] **Step 2: 写默认场景配置**
 
-Sample must include:
+`scenarios/default-sample/config.json` must include:
 
 - card types: `task`、`decision`、`memo`
 - fields: `title`、`body`、`priority`、`lane`、`assignee`、`options`、`reply`、`replied_by`，以及至少一个阶段 1 之外且支持基础过滤的扩展字段，例如 `risk_level`
@@ -579,7 +593,7 @@ Implement:
 
 Run:
 
-1. upsert sample config by id.
+1. load seed config and upsert by id.
 2. read current config.
 3. validate config.
 4. throw on invalid config.
@@ -738,11 +752,19 @@ Use selected card type `update.writableFields` and field definitions.
 
 Support text、longText、number、boolean、stringList、enum.
 
-- [ ] **Step 5: 动态筛选入口**
+- [ ] **Step 5: 动态字段条件列表**
 
-Preserve existing type/status/assignee path and wire supported field filters.
+Preserve type/status filtering. Field conditions must be added as a list item; field options come from configuration, show field kind, and mark unsupported filter kinds as not supported. Applying filters sends supported `field.<fieldId>` filters only.
 
-- [ ] **Step 6: 保持宽屏/窄屏功能对位**
+- [ ] **Step 6: 配置化列表最小展示**
+
+List rows must not require `title`、`priority` or `assignee`. If a card lacks `title`, show the first readable configured text field as primary text and another readable configured field as secondary text.
+
+- [ ] **Step 7: 显式分页**
+
+Use backend `limit/offset/total` for list pagination. Default to 50 cards per page, support 50/100/200/500 page sizes, and reset to the first page when filters change.
+
+- [ ] **Step 8: 保持宽屏/窄屏功能对位**
 
 The same create/edit/filter capabilities must be reachable in both layouts.
 
@@ -797,7 +819,7 @@ Expected: all pass.
 - [ ] S2-T6 样例配置包含 `task`、`decision`、`memo`。
 - [ ] S2-T7 样例 `decision` 声明正式回复所需字段和动作。
 - [ ] S2-T8 样例 hook action model 包含 `transition`、`webhook`、`script`。
-- [ ] S2-T13 同 id 内置样例配置再次初始化时覆盖更新。
+- [ ] S2-T13 同 id 配置种子再次初始化时覆盖更新。
 - [ ] S2-T14 配置引用无效时初始化失败。
 
 ### HTTP 集成测试
@@ -820,6 +842,9 @@ Expected: all pass.
 - [ ] 页面可创建 `task`、`decision`、`memo`。
 - [ ] 页面可编辑配置允许字段。
 - [ ] 页面可按配置字段过滤。
+- [ ] 筛选条件选择器展示字段类型；未支持过滤语义的字段可见并带“暂未支持”标识。
+- [ ] 无 `title`、`priority`、`assignee` 的业务类型仍能在列表中显示可读主信息和副信息。
+- [ ] 大量数据场景可通过显式分页访问默认前 50 张之后的数据。
 - [ ] 页面可创建、编辑并过滤阶段 1 之外的配置字段。
 - [ ] 页面可读取并使用阶段 1 之外的配置状态。
 - [ ] 宽屏和窄屏布局均可完成新建、编辑、筛选和错误查看。
@@ -832,7 +857,7 @@ Expected: all pass.
 阶段 2 人工验收应以“能力声明和可观察证据”为核心，不把用户限制为一套固定点击流程。推荐入口：
 
 1. `pnpm scenario:list`
-2. `pnpm scenario:start <场景 id> [--fresh]`
+2. `pnpm scenario:start <场景 id> [--port N] [--fresh]`
 3. 阅读场景 `README.md`，了解该场景包含什么配置、什么初始数据、适合观察什么能力。
 
 必须可观察的能力：
@@ -850,7 +875,7 @@ Expected: all pass.
 1. `文档: 更新阶段二配置模型路线`
    - 仅包含 `docs/roadmap.md` 的阶段 2 范围补充。
 2. `功能: 建立阶段二配置模型`
-   - 配置类型、样例配置、配置表、初始化、校验、`GET /config`。
+   - 配置类型、默认场景配置、配置表、初始化、校验、`GET /config`。
 3. `重构: 迁移卡片字段值存储`
    - `cards` 核心元数据、`card_field_values`、序列化和兼容响应。
 4. `功能: 使用配置驱动卡片读写`
@@ -876,6 +901,9 @@ Expected: all pass.
 - 样例配置包含至少一个阶段 1 之外字段，且该字段可被创建、编辑、读取和过滤。
 - 样例配置包含阶段 1 之外状态，且该状态可被读取并用于建卡校验。
 - 前端使用 `/config` 渲染新建、编辑和筛选。
+- 前端字段筛选使用条件列表，字段选项来自配置并展示字段类型；未支持过滤语义的字段可见且不会生成查询条件。
+- 卡片列表不强制依赖 `title`、`priority`、`assignee`；非默认场景可在无这些字段时显示配置字段摘要。
+- 卡片列表提供显式分页，large-dataset-smoke 的 1000 张卡可通过翻页访问。
 - S2-T1 到 S2-T18 均有自动化测试覆盖。
 - `scenario-config-testing-spec.md` 中定义的 6 个场景全部落地。
 - 默认配置来自 `scenarios/default-sample/config.json`，且指定 `CONFIG_SEED_PATH` 可切换配置种子。
@@ -896,3 +924,5 @@ Expected: all pass.
 - 路线图 S2-H1 到 S2-H8 均进入人工验收指南。
 - 计划没有修改阶段 1 历史计划文档。
 - 后续阶段要求以 `docs/roadmap.md` 为准，未写入本阶段计划作为未来提醒。
+- 配置化筛选条件列表的宽屏和窄屏 HTML 讨论稿已归档到阶段 2 `attachments/`。
+- 配置化筛选条件列表紧凑版 HTML 讨论稿已归档到阶段 2 `attachments/`。

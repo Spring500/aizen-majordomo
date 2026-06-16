@@ -1,17 +1,15 @@
-import { rmSync } from 'node:fs';
-import { join } from 'node:path';
 import { serve } from '@hono/node-server';
+import { finalScenarioConfigPath, prepareScenarioRuntime } from './scenario-lib.ts';
 
-const dbPath = join(process.cwd(), 'data', 'e2e-stage1.db');
-for (const path of [dbPath, `${dbPath}-wal`, `${dbPath}-shm`]) {
-  rmSync(path, { force: true });
-}
+const dbPath = await prepareScenarioRuntime('default-sample', true);
 process.env.DB_PATH = dbPath;
+const configSeedPath = finalScenarioConfigPath('default-sample');
+if (configSeedPath) process.env.CONFIG_SEED_PATH = configSeedPath;
 
 const { createApp } = await import('../src/app.ts');
 const { createDb } = await import('../src/db/index.ts');
 
-const db = createDb();
+const db = createDb(dbPath);
 const app = createApp(db);
 
 serve({ fetch: app.fetch, port: 3000 }, (info) => {

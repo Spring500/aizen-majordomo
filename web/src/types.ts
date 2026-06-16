@@ -75,4 +75,6 @@ export interface CardFilters {
   status?: string;
   assignee?: string;
   fields?: Record<string, string>;
+  limit?: number;
+  offset?: number;
 }

@@ -6,6 +6,7 @@ dist/
 
 # runtime data (SQLite db + WAL/SHM)
 data/
+data/scenarios/
 *.db
 *.db-wal
 *.db-shm
@@ -18,6 +19,9 @@ data/
 *.log
 test-results/
 playwright-report/
+.tmp/
+.tmp/scenarios/
+.tmp/e2e/
 
 # editor / OS
 .DS_Store

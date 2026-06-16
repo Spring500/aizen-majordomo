@@ -1,0 +1,8 @@
+{
+  "id": "legacy-stage1-migration",
+  "name": "阶段 1 旧库迁移",
+  "description": "验证阶段 1 旧 cards 表能升级到阶段 2 字段值表模型。",
+  "seed": { "type": "sql", "path": "legacy-seed.sql" },
+  "readme": "README.md",
+  "tags": ["stage2", "migration", "legacy"]
+}

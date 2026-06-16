@@ -3,6 +3,7 @@ import { getConfig } from './api/config.ts';
 import { createCard, getCard, listCards, updateCard } from './api/cards.ts';
 import { CardDrawer } from './components/CardDrawer.tsx';
 import { CardList } from './components/CardList.tsx';
+import { CardPagination } from './components/CardPagination.tsx';
 import { ErrorMessage } from './components/ErrorMessage.tsx';
 import { NewCardDialog } from './components/NewCardDialog.tsx';
 import { SidebarFilters } from './components/SidebarFilters.tsx';
@@ -13,7 +14,7 @@ export function App() {
   const [config, setConfig] = useState<AppConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<Card | null>(null);
-  const [filters, setFilters] = useState<CardFilters>({ type: '' });
+  const [filters, setFilters] = useState<CardFilters>({ type: '', limit: 50, offset: 0 });
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -74,6 +75,18 @@ export function App() {
     await loadCards();
   }
 
+  function changeFilters(next: CardFilters) {
+    setFilters({ ...next, limit: filters.limit ?? 50, offset: 0 });
+  }
+
+  function changePage(offset: number) {
+    setFilters((current) => ({ ...current, offset }));
+  }
+
+  function changePageSize(limit: number) {
+    setFilters((current) => ({ ...current, limit, offset: 0 }));
+  }
+
   if (!config) {
     return (
       <div className="app">
@@ -111,7 +124,7 @@ export function App() {
           config={config}
           open={filtersOpen}
           onClose={() => setFiltersOpen(false)}
-          onChange={setFilters}
+          onChange={changeFilters}
         />
         <main className="main-panel">
           <div className="board-header">
@@ -121,7 +134,20 @@ export function App() {
             </div>
           </div>
           <ErrorMessage message={error} />
-          <CardList cards={cards} selectedId={selected?.id} loading={loading} onSelect={(card) => void selectCard(card)} />
+          <CardList
+            cards={cards}
+            config={config}
+            selectedId={selected?.id}
+            loading={loading}
+            onSelect={(card) => void selectCard(card)}
+          />
+          <CardPagination
+            limit={filters.limit ?? 50}
+            offset={filters.offset ?? 0}
+            total={total}
+            onChange={changePage}
+            onLimitChange={changePageSize}
+          />
         </main>
         <CardDrawer card={selected} config={config} open={drawerOpen} onClose={() => setDrawerOpen(false)} onSave={save} />
       </div>
