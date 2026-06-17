@@ -24,10 +24,15 @@ test('阶段 2 配置驱动字段、状态和过滤路径可用', async ({ page 
   const drawer = page.getByRole('complementary', { name: '卡片详情' });
   await expect(
     drawer.getByLabel('Status'),
-    '详情应显示配置状态字段。若失败：检查状态写入和详情渲染',
-  ).toHaveValue('active');
+    '详情应显示配置状态名称。若失败：检查状态写入、配置映射和详情渲染',
+  ).toHaveValue('处理中');
   await drawer.getByLabel('风险等级').selectOption('low');
-  await drawer.getByRole('button', { name: '保存' }).click();
+  await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes('/cards/') && response.request().method() === 'PATCH' && response.ok(),
+    ),
+    drawer.getByRole('button', { name: '保存' }).click(),
+  ]);
 
   await page.getByRole('button', { name: '新建卡片' }).click();
   const secondDialog = page.getByRole('region', { name: '新建卡片' });
