@@ -27,7 +27,7 @@
 
 Files:
 
-- Modify: `docs/roadmap.md`
+- Modify: `docs/ROADMAP.md`
 - Modify: `docs/stages/stage-2-basic-config-model/plan.md`
 - Create: `docs/stages/stage-2-basic-config-model/scenario-config-testing-spec.md`
 - Create: `docs/stages/stage-2-basic-config-model/scenario-config-testing-plan.md`

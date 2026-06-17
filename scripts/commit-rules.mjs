@@ -1,5 +1,5 @@
 // 提交信息校验的共享规则。被 verify-commit-msg.mjs(单条) 与 verify-range-messages.mjs(范围) 复用。
-// 完整规范见 开发规范.md。
+// 完整规范见 CONTRIBUTING.md。
 import { execSync } from 'node:child_process';
 
 export const TYPES = ['功能', '修复', '重构', '文档', '测试', '构建', '性能', '样式', '杂项'];
@@ -107,7 +107,7 @@ export function stagedFiles() {
   }
 }
 
-export function printErrors(errors, heading = '✗ commit message 不符合规范（见 开发规范.md）：') {
+export function printErrors(errors, heading = '✗ commit message 不符合规范（见 CONTRIBUTING.md）：') {
   console.error('\n' + heading + '\n');
   for (const e of errors) console.error('  • ' + e);
   console.error('\n  正确示例：');

@@ -508,8 +508,8 @@ interface CardResponse {
 
 **Files:**
 - Read: `AGENTS.md`
-- Read: `开发规范.md`
-- Read: `docs/roadmap.md`
+- Read: `CONTRIBUTING.md`
+- Read: `docs/ROADMAP.md`
 
 - [ ] **Step 1: 确认当前分支和工作区**
 
@@ -881,7 +881,7 @@ Expected: all pass.
 ## 8. 提交拆分建议
 
 1. `文档: 更新阶段二配置模型路线`
-   - 仅包含 `docs/roadmap.md` 的阶段 2 范围补充。
+   - 仅包含 `docs/ROADMAP.md` 的阶段 2 范围补充。
 2. `功能: 建立阶段二配置模型`
    - 配置类型、默认场景配置、配置表、初始化、校验、`GET /config`。
 3. `重构: 迁移卡片字段值存储`
@@ -932,7 +932,7 @@ Expected: all pass.
 - 路线图 S2-T1 到 S2-T25 均进入测试清单。
 - 路线图 S2-H1 到 S2-H8 均进入人工验收指南。
 - 计划没有修改阶段 1 历史计划文档。
-- 后续阶段要求以 `docs/roadmap.md` 为准，未写入本阶段计划作为未来提醒。
+- 后续阶段要求以 `docs/ROADMAP.md` 为准，未写入本阶段计划作为未来提醒。
 - 配置化筛选条件列表的宽屏和窄屏 HTML 讨论稿已归档到阶段 2 `attachments/`。
 - 配置化筛选条件列表紧凑版 HTML 讨论稿已归档到阶段 2 `attachments/`。
 - 固定工作台与列表滚动区 HTML 讨论稿已归档到阶段 2 `attachments/`。

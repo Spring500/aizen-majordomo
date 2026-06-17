@@ -223,8 +223,8 @@ interface Card {
 
 **Files:**
 - Read: `AGENTS.md`
-- Read: `开发规范.md`
-- Read: `docs/路线图.md`
+- Read: `CONTRIBUTING.md`
+- Read: `docs/ROADMAP.md`
 - Read: `docs/阶段1-本地单人可用看板/实现计划.md`
 
 - [ ] **Step 1: 确认当前分支和工作区**
