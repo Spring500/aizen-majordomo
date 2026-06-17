@@ -1,27 +1,30 @@
 # AGENTS.md
 
-面向 AI agent 的协作约定。本文件只列**必须遵守的要点**，完整规则见 [开发规范.md](开发规范.md)。
+面向 AI agent 的最小协作规则。完整开发、提交、PR 和 CI 规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-## 在哪开发
-- **在 worktree / 分支上开发，不要在 `main` 上做日常开发**。每项工作新建分支或 worktree。
-- `main` 只接收「通过全部检查的落地」。
+## 开发位置
 
-## 提交信息（硬性校验，违者拒绝提交）
+- 每项工作新建分支或 worktree。
+- 不在 `main` 上做日常开发。
+- 远端 `main` 必须通过 PR 和 CI 落地。
+
+## 提交信息
+
 - 格式：首行 `类型: 标题`，空行，`意图：...`，空行，`主要修改：` + 至少一条 `- ` 要点。
-- 类型九选一（全中文）：`功能 / 修复 / 重构 / 文档 / 测试 / 构建 / 性能 / 样式 / 杂项`。
-- **禁止模型署名**：不得写 `Co-Authored-By`、`Generated with ...`、🤖 等。
-- 原子提交：`文档 / 构建 / 测试` 类提交只能含对应性质的文件（如 README 不能混进 `构建`）。
+- 类型九选一：`功能 / 修复 / 重构 / 文档 / 测试 / 构建 / 性能 / 样式 / 杂项`。
+- 禁止模型署名：不得写 `Co-Authored-By`、`Generated with ...`、机器人 emoji 等。
+- `文档`、`构建`、`测试` 类提交只能包含对应性质的文件。
 
 ## 测试与门禁
-- 写任何测试时，**每个 `expect` 都要带中文辅助信息**，说明「若失败意味着什么、要查什么」。
-- 分支提交会跑 `pnpm test`（全部快速 Vitest）作**硬门禁**，红灯则拒绝提交。
-- 未实现的行为规格先用 `it.todo` / `it.skip` 占位（套件保持绿），实现时再换真断言、用 `pnpm test:watch` 走红→绿，绿了连同代码一起提交。
-- 落地 `main` 会跑全量（Vitest + 将来的 Playwright）。
 
-## 落地方式（在主仓目录从分支合并）
-- squash：`git merge --squash <分支>` + `git commit`（丢弃分支脏历史）。
-- `--no-ff`：`git merge --no-ff <分支>`（保留历史；合入每条 message 必须合规）。
+- 写任何测试时，每个 `expect` 都要带中文辅助信息。
+- 分支提交会跑 `pnpm test`。
+- 涉及前端或用户流程时运行 `pnpm test:e2e`。
+- PR 必须通过 GitHub required checks：`Commit messages` 和 `Tests`。
+- 本地 hook 只是即时反馈；远端 branch protection + CI 是硬门禁。
 
-## 逃生与边界
-- 仅私有分支的临时 WIP 快照可用 `git commit --no-verify`；其余场景不要绕过 hook。
-- 本地 hook 可被绕过，请勿依赖它兜底——把它当即时反馈，自己对正确性负责。
+## 落地方式
+
+- 标准流程：分支提交 -> push -> PR -> CI 通过 -> merge。
+- 本地 `main` 合并只用于特殊验证或离线场景。
+- 私有分支临时 WIP 快照可用 `git commit --no-verify`；其余场景不要绕过 hook。

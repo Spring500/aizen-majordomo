@@ -1,8 +1,8 @@
-﻿# aizen-majordomo 路线图
+# aizen-majordomo 路线图
 
-> 生成时间：2026-06-10
-> 适用范围：`E:\project_aizen\aizen-majordomo`
-> 目标：用纵向切片方式尽快做出“基本可用”的版本，再逐步补齐状态、权限、管理、hook 和体验打磨。
+本文档定义产品阶段顺序、阶段范围和验收基线。开发、提交、PR 和 CI 规则见 [../CONTRIBUTING.md](../CONTRIBUTING.md)。
+
+目标：用纵向切片方式尽快做出“基本可用”的版本，再逐步补齐状态、权限、管理、hook 和体验打磨。
 
 ## 0. 路线原则
 
@@ -38,11 +38,11 @@
 全局门禁仍然必须执行：
 
 - 分支提交前，快速 Vitest 必须通过。
-- 落地 main 前，项目定义的全量门禁必须通过：快速 Vitest + Playwright。
+- 落地 main 前，GitHub PR required checks 必须通过：Commit messages + Tests。
 - 新增或修改的测试里，每个 `expect` 都必须带中文辅助信息。
 - README、交接文档或阶段说明中与实际行为不一致的内容必须同步更新。
-- 不得误提交 `docs/`、`data/`、`代理执行笔记/` 等本地资料。
-- 提交与落地流程必须遵守 `开发规范.md` 和 `AGENTS.md`。
+- 不得误提交 `data/`、`代理执行笔记/`、`docs/local/` 等本地资料。
+- 提交与落地流程必须遵守 [../CONTRIBUTING.md](../CONTRIBUTING.md) 和 [../AGENTS.md](../AGENTS.md)。
 - 后续任何涉及前端的阶段，都必须同时考虑横屏/宽屏和竖屏/窄屏布局。核心能力不能在窄屏被删除，只能改为抽屉、面板、弹层或其他适合窄屏的呈现方式；自动化测试或人工验收必须覆盖这种功能对位。
 
 ## 3. 阶段总览
@@ -78,7 +78,7 @@
 | S0-F6 | 只读 `GET /cards` | 空库可返回空列表。 |
 | S0-F7 | Vitest HTTP 行为测试底座 | 测试可用 `app.request()` 直接请求应用。 |
 | S0-F8 | Husky 提交门禁 | 提交信息和测试门禁有即时反馈。 |
-| S0-F9 | 项目协作规范 | `开发规范.md` 和 `AGENTS.md` 说明协作规则。 |
+| S0-F9 | 项目协作规范 | `CONTRIBUTING.md` 和 `AGENTS.md` 说明协作规则。 |
 
 ### 范围外
 
