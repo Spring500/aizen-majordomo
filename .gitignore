@@ -31,6 +31,7 @@ playwright-report/
 # local docs and temporary working notes
 docs/local/
 docs/**/*.bak
+代理执行笔记/
 
 # local git worktrees
 .worktrees/
