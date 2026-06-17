@@ -59,4 +59,24 @@ describe('卡片详情正式回复区', () => {
     expect(html, '详情抽屉应显示正式回复标题。若失败：检查 CardDrawer 是否识别 reply action').toContain('正式回复');
     expect(html, '未回复 decision 应显示提交回复按钮。若失败：检查回复输入区是否渲染').toContain('提交回复');
   });
+
+  it('详情状态使用配置显示名而不是原始状态 id', () => {
+    const html = renderToStaticMarkup(
+      <CardDrawer
+        card={card}
+        config={{ ...config, statuses: [{ id: 'waiting', name: '等待回复' }] }}
+        open={true}
+        onClose={vi.fn()}
+        onSave={async () => undefined}
+        onReply={async () => undefined}
+      />,
+    );
+
+    expect(html, '详情状态应显示配置中的中文状态名。若失败：检查 CardDrawer 是否把 status id 映射到 config.statuses.name').toContain(
+      'value="等待回复"',
+    );
+    expect(html, '详情状态不应直接显示原始 waiting id。若失败：检查 Status input 的 value 是否仍使用 card.status').not.toContain(
+      'value="waiting"',
+    );
+  });
 });

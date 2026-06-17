@@ -37,6 +37,7 @@ export function CardDrawer({
   const canReply = hasAction(cardType, 'reply');
   const existingReply = typeof card?.fields.reply === 'string' ? card.fields.reply : card?.reply;
   const repliedBy = card?.fields.replied_by ?? card?.replied_by ?? 'human';
+  const statusLabel = config.statuses.find((status) => status.id === card?.status)?.name ?? card?.status ?? '';
 
   useEffect(() => {
     setFields(card?.fields ?? {});
@@ -96,7 +97,7 @@ export function CardDrawer({
           <ErrorMessage message={error} />
           <label className="field">
             <span>Status</span>
-            <input aria-label="Status" value={card.status} disabled />
+            <input aria-label="Status" value={statusLabel} disabled />
           </label>
           {fieldsToRender.map((field) =>
             field ? (
