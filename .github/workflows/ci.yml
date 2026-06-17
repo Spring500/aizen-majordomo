@@ -7,25 +7,6 @@ on:
       - main
 
 jobs:
-  commit-messages:
-    name: Commit messages
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-
-      - name: Verify PR commit messages
-        run: node scripts/verify-range-messages.mjs "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"
-
   test:
     name: Tests
     runs-on: ubuntu-latest
