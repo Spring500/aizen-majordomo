@@ -19,6 +19,7 @@
     "scenario:prepare": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts prepare",
     "scenario:start": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts start",
     "scenario:copy-db": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts copy-db",
+    "majordomo": "node agent-kit/skills/majordomo/scripts/majordomo.mjs",
     "typecheck": "tsc --noEmit && tsc --noEmit -p web/tsconfig.json",
     "prepare": "husky && git config merge.ff false"
   },

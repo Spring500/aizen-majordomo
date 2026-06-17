@@ -71,3 +71,16 @@ export async function updateCard(
   });
   return (await parseResponse<CardResponse>(res)).card;
 }
+
+export async function runCardAction(
+  id: string,
+  actionId: string,
+  input: { fields: Record<string, unknown> },
+): Promise<Card> {
+  const res = await fetch(`/cards/${id}/actions/${actionId}`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  return (await parseResponse<CardResponse>(res)).card;
+}

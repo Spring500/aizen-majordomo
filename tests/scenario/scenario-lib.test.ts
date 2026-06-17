@@ -25,7 +25,10 @@ describe('阶段 2 场景数据库工具', () => {
   it('能列出阶段 2 要求的 6 个场景', () => {
     const ids = listScenarios().map((scenario) => scenario.id);
 
-    expect(ids, '场景列表应包含阶段 2 的 6 个场景。若失败：检查 scenarios 目录或 scenario.json 读取逻辑').toEqual([
+    expect(
+      ids.slice(0, 6),
+      '场景列表前 6 项应保持阶段 2 场景顺序。若失败：检查 scenarios 目录或排序逻辑',
+    ).toEqual([
       'default-sample',
       'custom-review-flow',
       'status-matrix',
@@ -33,6 +36,12 @@ describe('阶段 2 场景数据库工具', () => {
       'legacy-stage1-migration',
       'large-dataset-smoke',
     ]);
+  });
+
+  it('能列出 agent kit 的实战看板配置场景', () => {
+    const ids = listScenarios().map((scenario) => scenario.id);
+
+    expect(ids, 'agent-board-config 应作为 agent-kit 配置场景出现在列表中').toContain('agent-board-config');
   });
 
   it('prepare 会生成 default-sample 基准数据库并写入场景配置', async () => {

@@ -5,7 +5,7 @@ import {
   listScenarios,
   prepareScenario,
   prepareScenarioRuntime,
-  SCENARIOS_DIR,
+  scenarioDir,
 } from './scenario-lib.ts';
 
 function usage(): never {
@@ -43,12 +43,13 @@ if (command === 'list') {
   const app = createApp(db);
   const scenario = listScenarios().find((item) => item.id === id);
   serve({ fetch: app.fetch, port }, (info) => {
+    const baseDir = scenarioDir(id);
     console.log(`场景：${id}`);
     console.log(`说明：${scenario?.description ?? ''}`);
     console.log(`地址：http://127.0.0.1:${info.port}`);
     console.log(`数据库：${runtimeDb}`);
-    console.log(`配置：${SCENARIOS_DIR}\\${id}\\${scenario?.config ?? scenario?.phases?.at(-1)?.config ?? ''}`);
-    console.log(`说明：${SCENARIOS_DIR}\\${id}\\${scenario?.readme ?? 'README.md'}`);
+    console.log(`配置：${baseDir}\\${scenario?.config ?? scenario?.phases?.at(-1)?.config ?? ''}`);
+    console.log(`说明：${baseDir}\\${scenario?.readme ?? 'README.md'}`);
   });
 } else {
   usage();

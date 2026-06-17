@@ -1,6 +1,8 @@
 import { Hono } from 'hono';
 import type { AppEnv } from '../types.ts';
+import { recordChange } from '../changes/repository.ts';
 import { readConfig } from '../config/repository.ts';
+import { runCardAction } from '../cards/actions.ts';
 import {
   createCard,
   enabledStatusExists,
@@ -97,7 +99,17 @@ cards.post('/', async (c) => {
     fields: actionResult.fields,
     actor: c.req.header('X-Actor') ?? undefined,
   });
-  return c.json({ card: row }, 201);
+  const change = recordChange(c.get('db'), {
+    event: 'card.created',
+    cardId: row.id,
+    actor: c.req.header('X-Actor') ?? 'human',
+    payload: {
+      type: row.type,
+      status: row.status,
+      fields: row.fields,
+    },
+  });
+  return c.json({ card: row, change }, 201);
 });
 
 cards.get('/:id', (c) => {
@@ -105,6 +117,30 @@ cards.get('/:id', (c) => {
   if (!row) return notFound(c);
 
   return c.json({ card: row });
+});
+
+cards.post('/:id/actions/:actionId', async (c) => {
+  const parsed = normalizeUpdateBody(await c.req.json().catch(() => undefined));
+  if (!parsed.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', parsed.error);
+  if (parsed.value.statusPresent) {
+    return badRequest(c, 'STATUS_PATCH_FORBIDDEN', '不允许通过 action 修改 status', {
+      field: 'status',
+      reason: '请使用 transition 接口修改状态',
+    });
+  }
+
+  const config = readConfig(c.get('db'));
+  const result = runCardAction(c.get('db'), config, {
+    cardId: c.req.param('id'),
+    actionId: c.req.param('actionId'),
+    fields: parsed.value.fields,
+    actor: c.req.header('X-Actor') ?? 'human',
+  });
+
+  if (!result.ok && result.status === 404) return notFound(c);
+  if (!result.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', result.error);
+
+  return c.json({ card: result.card, change: result.change });
 });
 
 cards.patch('/:id', async (c) => {
@@ -128,5 +164,12 @@ cards.patch('/:id', async (c) => {
   const row = updateCard(c.get('db'), existing.id, { fields: actionResult.fields });
   if (!row) return notFound(c);
 
-  return c.json({ card: row });
+  const change = recordChange(c.get('db'), {
+    event: 'card.updated',
+    cardId: row.id,
+    actor: c.req.header('X-Actor') ?? 'human',
+    payload: { fields: actionResult.fields },
+  });
+
+  return c.json({ card: row, change });
 });

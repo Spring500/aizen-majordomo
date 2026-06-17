@@ -7,6 +7,8 @@ import { loadSeedConfig } from '../src/config/load-seed.ts';
 import { upsertConfig } from '../src/config/repository.ts';
 
 export const SCENARIOS_DIR = resolve(process.cwd(), 'scenarios');
+export const AGENT_KIT_CONFIGS_DIR = resolve(process.cwd(), 'agent-kit', 'configs');
+export const SCENARIO_ROOTS = [SCENARIOS_DIR, AGENT_KIT_CONFIGS_DIR];
 export const SCENARIO_DB_DIR = resolve(
   process.cwd(),
   process.env.SCENARIO_DB_DIR ??
@@ -19,6 +21,7 @@ const SCENARIO_ORDER = [
   'existing-data-config-change',
   'legacy-stage1-migration',
   'large-dataset-smoke',
+  'agent-board-config',
 ];
 
 interface SeedRef {
@@ -57,7 +60,11 @@ export function runtimeDbPath(id: string, qualifier?: string): string {
   return join(SCENARIO_DB_DIR, qualifier ? `${id}.${qualifier}.runtime.db` : `${id}.runtime.db`);
 }
 
-function scenarioDir(id: string): string {
+export function scenarioDir(id: string): string {
+  for (const root of SCENARIO_ROOTS) {
+    const dir = join(root, id);
+    if (existsSync(join(dir, 'scenario.json'))) return dir;
+  }
   return join(SCENARIOS_DIR, id);
 }
 
@@ -79,9 +86,14 @@ export function finalScenarioConfigPath(id: string): string | undefined {
 }
 
 export function listScenarios(): ScenarioManifest[] {
-  return readdirSync(SCENARIOS_DIR, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => readManifest(entry.name))
+  return SCENARIO_ROOTS.flatMap((root) =>
+    existsSync(root)
+      ? readdirSync(root, { withFileTypes: true })
+          .filter((entry) => entry.isDirectory())
+          .filter((entry) => existsSync(join(root, entry.name, 'scenario.json')))
+          .map((entry) => readManifest(entry.name))
+      : [],
+  )
     .sort((a, b) => {
       const left = SCENARIO_ORDER.indexOf(a.id);
       const right = SCENARIO_ORDER.indexOf(b.id);

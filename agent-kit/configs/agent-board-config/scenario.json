@@ -1,0 +1,12 @@
+{
+  "id": "agent-board-config",
+  "name": "Agent 实战看板配置",
+  "description": "用于 agent 创建 decision、等待人类回复和读取 changes 的实战协作配置。",
+  "config": "config.json",
+  "readme": "README.md",
+  "tags": ["stage3", "agent-kit", "decision-loop"],
+  "expected": {
+    "cardTypes": ["task", "decision", "memo"],
+    "statuses": ["default", "active", "waiting", "resolved", "done"]
+  }
+}

@@ -54,4 +54,37 @@ describe('配置化卡片列表展示', () => {
       '未分配',
     );
   });
+
+  it('等待回复的 decision 在列表中显示等待回复标记', () => {
+    const decisionConfig: AppConfig = {
+      cardTypes: [
+        {
+          id: 'decision',
+          name: 'Decision',
+          fields: [{ id: 'title', label: '标题', kind: 'text' }],
+          actions: [],
+        },
+      ],
+      statuses: [],
+      transitions: [],
+      hookActionModels: [],
+      hooks: [],
+    };
+    const waitingDecision: Card = {
+      ...card,
+      id: 'decision-1',
+      type: 'decision',
+      status: 'waiting',
+      fields: { title: '等待人类拍板' },
+      title: '等待人类拍板',
+    };
+
+    const html = renderToStaticMarkup(
+      <CardList cards={[waitingDecision]} config={decisionConfig} loading={false} onSelect={vi.fn()} />,
+    );
+
+    expect(html, '等待回复 decision 应显示等待回复标记。若失败：检查 CardList 是否识别 decision/waiting/reply').toContain(
+      '等待回复',
+    );
+  });
 });

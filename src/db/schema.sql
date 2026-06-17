@@ -79,13 +79,14 @@ CREATE TABLE IF NOT EXISTS comments (
 );
 
 CREATE TABLE IF NOT EXISTS changes (
-  seq       INTEGER PRIMARY KEY AUTOINCREMENT,
-  card_id   TEXT NOT NULL,
-  field     TEXT,
-  old_value TEXT,
-  new_value TEXT,
-  actor     TEXT,
-  at        INTEGER NOT NULL
+  seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+  event        TEXT NOT NULL,
+  card_id      TEXT NOT NULL,
+  action       TEXT,
+  field        TEXT,
+  actor        TEXT,
+  payload_json TEXT NOT NULL,
+  at           INTEGER NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS roles (
@@ -118,6 +119,7 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 
 CREATE INDEX IF NOT EXISTS idx_changes_seq ON changes(seq);
+CREATE INDEX IF NOT EXISTS idx_changes_card ON changes(card_id);
 CREATE INDEX IF NOT EXISTS idx_comments_card ON comments(card_id);
 CREATE INDEX IF NOT EXISTS idx_cards_status ON cards(status);
 CREATE INDEX IF NOT EXISTS idx_cards_type ON cards(type);
