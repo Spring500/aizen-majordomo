@@ -1,8 +1,24 @@
+#!/usr/bin/env sh
+
 branch=$(git rev-parse --abbrev-ref HEAD)
 
 # 仅在「合并进 main」时执行全量闸门;合并进其它分支放行。
 [ "$branch" != "main" ] && exit 0
 
 echo "[pre-merge-commit] 合并进 main → 校验合入消息合规 + 全量门禁"
-node scripts/verify-range-messages.mjs "HEAD..MERGE_HEAD" || exit 1
+
+merge_heads=$(env | sed -n 's/^GITHEAD_\([0-9a-fA-F][0-9a-fA-F]*\)=.*/\1/p')
+if [ -z "$merge_heads" ]; then
+  echo "[pre-merge-commit] 无法从 GITHEAD_* 环境变量取得合入提交"
+  echo "[pre-merge-commit] 可恢复操作：若 Git 已进入合并待提交状态，请依次执行："
+  echo "[pre-merge-commit]   node scripts/verify-range-messages.mjs \"HEAD..MERGE_HEAD\""
+  echo "[pre-merge-commit]   pnpm test && pnpm test:e2e"
+  echo "[pre-merge-commit]   git commit"
+  exit 1
+fi
+
+for merge_head in $merge_heads; do
+  node scripts/verify-range-messages.mjs "HEAD..$merge_head" || exit 1
+done
+
 pnpm test && pnpm test:e2e
