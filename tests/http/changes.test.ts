@@ -67,4 +67,84 @@ describe('GET /changes', () => {
     expect(body.changes[0].payload.fields.title, '编辑事件 payload 应包含本次写入字段').toBe('新标题');
     expect(body.changes[0].actor, '编辑事件应记录 X-Actor').toBe('human');
   });
+
+  it('GET /changes?since=0 按 seq 升序返回多条变化', async () => {
+    const { app } = createTestApp();
+    await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'task', fields: { title: '第一张' } }),
+    });
+    await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'task', fields: { title: '第二张' } }),
+    });
+
+    const body = await (await app.request('/changes?since=0')).json();
+
+    expect(
+      body.changes.map((change: any) => change.seq),
+      'changes 应按 seq 升序返回。若失败：检查 /changes 查询 ORDER BY seq ASC',
+    ).toEqual([1, 2]);
+    expect(
+      body.changes.map((change: any) => change.payload.fields.title),
+      '按 seq 升序返回时 payload 顺序应与创建顺序一致。若失败：检查是否按 updated_at 排序',
+    ).toEqual(['第一张', '第二张']);
+  });
+
+  it('回复 decision 后可从 /changes 读取 card.action.reply 事件', async () => {
+    const { app } = createTestApp();
+    const create = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '需要回复' } }),
+    });
+    const created = await create.json();
+    const beforeReply = await (await app.request('/changes?since=0')).json();
+
+    await app.request(`/cards/${created.card.id}/actions/reply`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+      body: JSON.stringify({ fields: { reply: '选择 A', replied_by: 'human' } }),
+    });
+    const body = await (await app.request(`/changes?since=${beforeReply.latestSeq}`)).json();
+
+    expect(body.changes.length, '从回复前游标读取应只返回回复事件。若失败：检查 reply 是否写入 changes').toBe(1);
+    expect(body.changes[0].event, '回复事件应能通过 /changes 读取。若失败：检查 recordChange 事件名').toBe(
+      'card.action.reply',
+    );
+    expect(body.changes[0].action, '回复事件 action 应为 reply。若失败：检查 action 字段写入').toBe('reply');
+    expect(body.changes[0].payload.fields.reply, '回复事件 payload 应包含 reply 内容。若失败：检查 payload.fields').toBe(
+      '选择 A',
+    );
+  });
+
+  it('changes 游标使用 seq 而不是 updated_at', async () => {
+    const { app, db } = createTestApp();
+    const first = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '旧 updated_at 后创建' } }),
+    });
+    const firstCard = (await first.json()).card;
+    const firstChanges = await (await app.request('/changes?since=0')).json();
+    db.prepare('UPDATE cards SET updated_at = @updated_at WHERE id = @id').run({ id: firstCard.id, updated_at: 999999 });
+
+    const second = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', fields: { title: '新 seq 低 updated_at' } }),
+    });
+    const secondCard = (await second.json()).card;
+    db.prepare('UPDATE cards SET updated_at = @updated_at WHERE id = @id').run({ id: secondCard.id, updated_at: 1 });
+
+    const body = await (await app.request(`/changes?since=${firstChanges.latestSeq}`)).json();
+
+    expect(body.changes.length, '使用第一个 seq 游标后应返回第二次创建事件。若失败：检查是否错误依赖 updated_at').toBe(1);
+    expect(body.changes[0].cardId, 'seq 游标应返回第二张卡事件，不受 updated_at 大小影响').toBe(secondCard.id);
+    expect(body.changes[0].seq > firstChanges.latestSeq, '返回事件的 seq 应大于 since。若失败：检查 WHERE seq > since').toBe(
+      true,
+    );
+  });
 });
