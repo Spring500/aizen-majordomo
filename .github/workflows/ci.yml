@@ -10,6 +10,8 @@ jobs:
   test:
     name: Tests
     runs-on: ubuntu-latest
+    env:
+      CI_STEP_TIMINGS_FILE: ${{ runner.temp }}/ci-step-timings.md
 
     steps:
       - name: Checkout
@@ -40,3 +42,18 @@ jobs:
 
       - name: Run Playwright
         run: node scripts/ci-step.mjs --name "Run Playwright" -- pnpm test:e2e
+
+      - name: Publish CI timing summary
+        if: always()
+        run: |
+          {
+            echo "## CI step timings"
+            echo ""
+            echo "| Step | Status | Duration | Command |"
+            echo "| --- | --- | ---: | --- |"
+            if [ -f "$CI_STEP_TIMINGS_FILE" ]; then
+              cat "$CI_STEP_TIMINGS_FILE"
+            else
+              echo "| No timed steps recorded | FAIL missing data | 0ms | \`CI_STEP_TIMINGS_FILE\` |"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

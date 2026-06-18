@@ -17,7 +17,7 @@ const result = spawnSync(command, args, { stdio: 'inherit', shell: process.platf
 const durationMs = Date.now() - started;
 const status = result.status === 0 ? 'success' : 'failure';
 
-writeSummary({ name, status, durationMs, command: [command, ...args].join(' ') });
+writeTimingRow({ name, status, durationMs, command: [command, ...args].join(' ') });
 
 if (result.error) {
   console.error(result.error);
@@ -26,19 +26,15 @@ if (result.error) {
 
 process.exit(result.status ?? 1);
 
-function writeSummary({ name, status, durationMs, command }) {
-  const summaryPath = process.env.GITHUB_STEP_SUMMARY;
-  if (!summaryPath) return;
+function writeTimingRow({ name, status, durationMs, command }) {
+  const timingsPath = process.env.CI_STEP_TIMINGS_FILE;
+  if (!timingsPath) return;
 
   const duration = formatDuration(durationMs);
-  const icon = status === 'success' ? 'OK' : 'FAIL';
-  const line = `| ${escapeCell(name)} | ${icon} ${status} | ${duration} | \`${escapeCell(command)}\` |\n`;
+  const label = status === 'success' ? 'PASS' : 'FAIL';
+  const line = `| ${escapeCell(name)} | ${label} ${status} | ${duration} | \`${escapeCell(command)}\` |\n`;
 
-  appendFileSync(
-    summaryPath,
-    `\n### CI step result: ${name}\n\n| Step | Status | Duration | Command |\n| --- | --- | ---: | --- |\n${line}`,
-    'utf8',
-  );
+  appendFileSync(timingsPath, line, 'utf8');
 }
 
 function formatDuration(durationMs) {
