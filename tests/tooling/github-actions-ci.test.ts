@@ -11,7 +11,7 @@ function readWorkflow(name: string) {
 }
 
 describe('GitHub Actions CI 门禁', () => {
-  it('PR 和 main push 会运行完整测试门禁', () => {
+  it('PR 和 main push 会运行完整测试门禁并记录关键步骤耗时', () => {
     const workflow = readCiWorkflow();
 
     expect(
@@ -22,12 +22,66 @@ describe('GitHub Actions CI 门禁', () => {
       workflow,
       'CI 应在 main push 上触发。若失败：检查 main 合并后测试门禁是否缺失',
     ).toContain('branches:');
-    expect(workflow, 'CI 应运行快速 Vitest。若失败：检查 test job 是否缺少 pnpm test').toContain(
-      'pnpm test',
+    expect(
+      workflow,
+      'CI 应通过计时脚本记录依赖安装耗时。若失败：检查 GitHub job summary 是否会缺少安装阶段记录',
+    ).toContain(
+      'node scripts/ci-step.mjs --name "Install dependencies" -- pnpm install --frozen-lockfile',
     );
-    expect(workflow, 'CI 应运行 Playwright e2e。若失败：检查 test job 是否缺少 pnpm test:e2e').toContain(
-      'pnpm test:e2e',
+    expect(
+      workflow,
+      'CI 应通过计时脚本记录 Vitest 耗时。若失败：检查 GitHub job summary 是否会缺少快速测试记录',
+    ).toContain('node scripts/ci-step.mjs --name "Run Vitest" -- pnpm test');
+    expect(
+      workflow,
+      'CI 应单独构建前端并记录耗时。若失败：检查构建耗时是否仍混在 Playwright 阶段里',
+    ).toContain('node scripts/ci-step.mjs --name "Build web" -- pnpm build:web');
+    expect(
+      workflow,
+      'CI 应单独安装 Playwright Chromium 并记录耗时。若失败：检查最大耗时阶段是否不可观察',
+    ).toContain(
+      'node scripts/ci-step.mjs --name "Install Playwright Chromium" -- pnpm exec playwright install --with-deps chromium',
     );
+    expect(
+      workflow,
+      'CI 应通过计时脚本记录 Playwright e2e 耗时。若失败：检查 GitHub job summary 是否会缺少 e2e 记录',
+    ).toContain(
+      'node scripts/ci-step.mjs --name "Run Playwright" -- pnpm test:e2e',
+    );
+  });
+
+  it('CI 计时脚本会写入 GitHub job summary', () => {
+    const script = readFileSync(join(process.cwd(), 'scripts', 'ci-step.mjs'), 'utf8');
+
+    expect(
+      script,
+      'CI 计时脚本应读取 GITHUB_STEP_SUMMARY。若失败：检查 Actions 页面是否能展示步骤摘要',
+    ).toContain('GITHUB_STEP_SUMMARY');
+    expect(
+      script,
+      'CI 计时脚本应记录成功状态。若失败：检查成功步骤摘要是否可读',
+    ).toContain('success');
+    expect(
+      script,
+      'CI 计时脚本应记录失败状态。若失败：检查失败步骤摘要是否可读',
+    ).toContain('failure');
+    expect(
+      script,
+      'CI 计时脚本应记录耗时。若失败：检查摘要是否能定位慢步骤',
+    ).toContain('duration');
+  });
+
+  it('Playwright 启动服务不重复构建前端', () => {
+    const config = readFileSync(join(process.cwd(), 'playwright.config.ts'), 'utf8');
+
+    expect(
+      config,
+      '前端构建应由 CI 的 Build web 步骤单独计时。若失败：检查 Playwright 耗时是否混入重复构建',
+    ).not.toContain('pnpm build:web &&');
+    expect(
+      config,
+      'Playwright webServer 应只启动 E2E 服务。若失败：检查 E2E 服务启动命令是否被误删',
+    ).toContain('scripts/e2e-server.ts');
   });
 
   it('PR 会校验提交消息范围', () => {
