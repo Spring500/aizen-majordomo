@@ -136,8 +136,6 @@ aizen-majordomo/
 - 开发、提交、测试和 PR 规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 - AI agent 必须先读 [AGENTS.md](AGENTS.md)。
 - 产品路线和阶段验收基线见 [docs/ROADMAP.md](docs/ROADMAP.md)。
-- 阶段 3 设计见 [docs/stages/stage-3-agent-decision-loop/design.md](docs/stages/stage-3-agent-decision-loop/design.md)。
-- 阶段 3 实施计划见 [docs/stages/stage-3-agent-decision-loop/plan.md](docs/stages/stage-3-agent-decision-loop/plan.md)。
 
 ## 后续方向
 
