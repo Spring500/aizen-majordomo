@@ -46,7 +46,7 @@
 - Create: `agent-kit/configs/agent-board-config/config.json`
 - Create: `agent-kit/configs/agent-board-config/README.md`
 - Create: `agent-kit/skills/majordomo/SKILL.md`
-- Create: `agent-kit/skills/majordomo/scripts/majordomo.mjs`
+- Create inside `agent-kit/skills/majordomo/`: `scripts/majordomo.mjs`
 - Create: `agent-kit/skills/majordomo/references/api.md`
 - Create: `agent-kit/skills/majordomo/references/board-config.md`
 - Create: `agent-kit/skills/majordomo/references/recovery.md`
@@ -925,7 +925,7 @@ Expected: PASS，prepare 输出 prepared db 路径。
 ### Task 5: 实现 agent CLI
 
 **Files:**
-- Create: `agent-kit/skills/majordomo/scripts/majordomo.mjs`
+- Create inside `agent-kit/skills/majordomo/`: `scripts/majordomo.mjs`
 - Create: `tests/agent-kit/majordomo-cli.test.ts`
 
 - [ ] **Step 1: 写 CLI 参数解析和 HTTP helper**

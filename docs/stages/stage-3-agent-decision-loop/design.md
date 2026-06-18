@@ -82,13 +82,13 @@ agent-kit/
 
 ### 3.3 CLI
 
-CLI 位于：
+仓库源码中，CLI 作为 skill 的配套工具放在该 skill 自己的 `scripts/` 目录下：
 
 ```text
-agent-kit/skills/majordomo/scripts/majordomo.mjs
+scripts/majordomo.mjs
 ```
 
-CLI 从 skill 目录直接运行，不在项目根 `package.json` 增加应用层转发：
+Agent 使用时只从 skill 目录直接运行，不引用仓库路径，也不在项目根 `package.json` 增加应用层转发：
 
 ```text
 node scripts/majordomo.mjs ask ...
