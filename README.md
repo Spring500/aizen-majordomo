@@ -1,6 +1,6 @@
 # aizen-majordomo
 
-自托管的本地看板系统，同时服务人类与 AI agent。人类用网页处理事项和回复决策，agent 通过 CLI 创建 decision、等待人类回复，并用 changes 事件流恢复上下文。
+自托管的本地看板系统，同时服务人类与 AI agent。人类用网页处理事项和回复决策，agent 通过配套交付物参与异步协作。
 
 当前已具备阶段 3 人机决策闭环 MVP：Hono API、SQLite 持久化、React 前端、配置驱动卡片模型、changes 事件流、reply action、独立 agent board 配置，以及配套 agent skill + CLI。认证、强状态流转、评论和 hook 运行器尚未实现。
 
@@ -11,7 +11,7 @@
 - 使用 SQLite 保存运行时数据和配置。
 - 使用场景配置体验不同卡片模型和大量数据。
 - 通过 GitHub PR + CI 保护 `main`，本地 hook 提供提前反馈。
-- agent 可通过 CLI 创建 decision、等待人类正式回复，并用 changes 事件流恢复状态。
+- 已包含面向 agent 协作的配置、skill 和 CLI 交付物。
 
 ## 环境要求
 
@@ -70,23 +70,6 @@ PORT=8080 DB_PATH=./data/dev.db pnpm start
 
 ```bash
 curl http://localhost:3000/health
-```
-
-## Agent Kit
-
-Agent 协作配置、skill 和 CLI 位于：
-
-```text
-agent-kit/configs/agent-board-config/
-agent-kit/skills/majordomo/
-```
-
-CLI 位于 `agent-kit/skills/majordomo/scripts/majordomo.mjs`。具体 agent 使用流程见 [agent-kit/skills/majordomo/SKILL.md](agent-kit/skills/majordomo/SKILL.md)。
-
-Agent 实战看板配置可作为场景启动：
-
-```powershell
-pnpm scenario:start agent-board-config --fresh
 ```
 
 ## 场景体验
