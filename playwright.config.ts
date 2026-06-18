@@ -16,7 +16,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm build:web && node --experimental-sqlite --no-warnings --import tsx scripts/e2e-server.ts',
+    command: 'node --experimental-sqlite --no-warnings --import tsx scripts/e2e-server.ts',
     url: 'http://127.0.0.1:3000/health',
     reuseExistingServer: false,
     timeout: 60_000,

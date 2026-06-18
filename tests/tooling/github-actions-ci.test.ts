@@ -11,7 +11,7 @@ function readWorkflow(name: string) {
 }
 
 describe('GitHub Actions CI 门禁', () => {
-  it('PR 和 main push 会运行完整测试门禁', () => {
+  it('PR 和 main push 会运行完整测试门禁并记录关键步骤耗时', () => {
     const workflow = readCiWorkflow();
 
     expect(
@@ -22,12 +22,139 @@ describe('GitHub Actions CI 门禁', () => {
       workflow,
       'CI 应在 main push 上触发。若失败：检查 main 合并后测试门禁是否缺失',
     ).toContain('branches:');
-    expect(workflow, 'CI 应运行快速 Vitest。若失败：检查 test job 是否缺少 pnpm test').toContain(
-      'pnpm test',
+    expect(
+      workflow,
+      'CI 应通过计时脚本记录依赖安装耗时。若失败：检查 GitHub job summary 是否会缺少安装阶段记录',
+    ).toContain(
+      'node scripts/ci-step.mjs --name "Install dependencies" -- pnpm install --frozen-lockfile',
     );
-    expect(workflow, 'CI 应运行 Playwright e2e。若失败：检查 test job 是否缺少 pnpm test:e2e').toContain(
-      'pnpm test:e2e',
+    expect(
+      workflow,
+      'CI 应通过计时脚本记录 Vitest 耗时。若失败：检查 GitHub job summary 是否会缺少快速测试记录',
+    ).toContain('node scripts/ci-step.mjs --name "Run Vitest" -- pnpm test');
+    expect(
+      workflow,
+      'CI 应单独构建前端并记录耗时。若失败：检查构建耗时是否仍混在 Playwright 阶段里',
+    ).toContain('node scripts/ci-step.mjs --name "Build web" -- pnpm build:web');
+    expect(
+      workflow,
+      'CI 应单独安装 Playwright Chromium 并记录耗时。若失败：检查最大耗时阶段是否不可观察',
+    ).toContain(
+      'node scripts/ci-step.mjs --name "Install Playwright Chromium" -- pnpm exec playwright install --with-deps chromium',
     );
+    expect(
+      workflow,
+      'CI 应通过计时脚本记录 Playwright e2e 耗时。若失败：检查 GitHub job summary 是否会缺少 e2e 记录',
+    ).toContain(
+      'node scripts/ci-step.mjs --name "Run Playwright" -- pnpm test:e2e',
+    );
+    expect(
+      workflow,
+      'CI 应在所有计时步骤后统一发布结果摘要。若失败：检查 Actions Summary 是否会拆成多个重复小节',
+    ).toContain('Publish step results summary');
+    expect(
+      workflow,
+      'CI 统一发布摘要应在失败时也执行。若失败：检查失败步骤之后是否还能看到已完成步骤耗时',
+    ).toContain('if: always()');
+  });
+
+  it('CI 计时脚本会先写入临时明细，再由最后一步发布 GitHub job summary', () => {
+    const script = readFileSync(join(process.cwd(), 'scripts', 'ci-step.mjs'), 'utf8');
+
+    expect(
+      script,
+      'CI 计时脚本应读取 CI_STEP_TIMINGS_FILE。若失败：检查跨 step 汇总是否会丢失中间结果',
+    ).toContain('CI_STEP_TIMINGS_FILE');
+    expect(
+      script,
+      'CI 计时脚本不应直接写 GITHUB_STEP_SUMMARY。若失败：检查 Actions Summary 是否会被拆成多个 step 小节',
+    ).not.toContain('GITHUB_STEP_SUMMARY');
+    expect(
+      script,
+      'CI 计时脚本应记录成功状态。若失败：检查成功步骤摘要是否可读',
+    ).toContain('success');
+    expect(
+      script,
+      'CI 计时脚本应记录失败状态。若失败：检查失败步骤摘要是否可读',
+    ).toContain('failure');
+    expect(
+      script,
+      'CI 计时脚本应记录耗时。若失败：检查摘要是否能定位慢步骤',
+    ).toContain('duration');
+    expect(
+      script,
+      'CI 计时脚本应统一用秒展示耗时。若失败：检查 Summary 是否仍混用毫秒和秒',
+    ).toContain('toFixed(1)');
+
+    const workflow = readCiWorkflow();
+
+    expect(
+      workflow,
+      'CI 应由最后一步读取临时明细并写入 GITHUB_STEP_SUMMARY。若失败：检查 Summary 是否无法集中展示',
+    ).toContain('GITHUB_STEP_SUMMARY');
+    expect(
+      workflow,
+      'Summary 标题应简洁展示 step results。若失败：检查 Summary 章节名是否过窄或重复写 CI',
+    ).toContain('## Step results');
+    expect(
+      script,
+      '状态列应使用 GitHub Summary 中更易扫读的通过图标。若失败：检查成功状态是否不直观',
+    ).toContain('✅ passed');
+    expect(
+      script,
+      '状态列应使用 GitHub Summary 中更易扫读的失败图标。若失败：检查失败状态是否不直观',
+    ).toContain('❌ failed');
+    expect(
+      workflow,
+      'CI 应使用同一个临时明细文件串联多个 step。若失败：检查计时结果是否无法跨 step 聚合',
+    ).toContain('CI_STEP_TIMINGS_FILE: ci-step-timings.md');
+    expect(
+      workflow,
+      'CI 不应在 job env 中依赖 runner context。若失败：检查 workflow 是否会在创建 job 前解析失败',
+    ).not.toContain('runner.temp');
+  });
+
+  it('GitHub Actions 使用 Node 24 运行时版本', () => {
+    for (const workflowName of ['ci.yml', 'commit-messages-pr.yml', 'commit-messages-main.yml']) {
+      const workflow = readWorkflow(workflowName);
+
+      expect(
+        workflow,
+        `${workflowName} 应使用 checkout v6。若失败：检查 GitHub Actions 是否仍提示 Node.js 20 deprecated`,
+      ).toContain('actions/checkout@v6');
+      expect(
+        workflow,
+        `${workflowName} 应使用 setup-node v6。若失败：检查 GitHub Actions 是否仍提示 Node.js 20 deprecated`,
+      ).toContain('actions/setup-node@v6');
+      expect(
+        workflow,
+        `${workflowName} 不应继续引用 v4 actions。若失败：检查 warning 是否来自旧 action runtime`,
+      ).not.toMatch(/actions\/(?:checkout|setup-node)@v4/);
+    }
+
+    const ciWorkflow = readCiWorkflow();
+
+    expect(
+      ciWorkflow,
+      'CI 应使用 pnpm/action-setup v6。若失败：检查 pnpm setup 是否仍提示 Node.js 20 deprecated',
+    ).toContain('pnpm/action-setup@v6');
+    expect(
+      ciWorkflow,
+      'CI 不应继续引用 pnpm/action-setup v4。若失败：检查 warning 是否来自旧 pnpm action runtime',
+    ).not.toContain('pnpm/action-setup@v4');
+  });
+
+  it('Playwright 启动服务不重复构建前端', () => {
+    const config = readFileSync(join(process.cwd(), 'playwright.config.ts'), 'utf8');
+
+    expect(
+      config,
+      '前端构建应由 CI 的 Build web 步骤单独计时。若失败：检查 Playwright 耗时是否混入重复构建',
+    ).not.toContain('pnpm build:web &&');
+    expect(
+      config,
+      'Playwright webServer 应只启动 E2E 服务。若失败：检查 E2E 服务启动命令是否被误删',
+    ).toContain('scripts/e2e-server.ts');
   });
 
   it('PR 会校验提交消息范围', () => {
@@ -53,6 +180,22 @@ describe('GitHub Actions CI 门禁', () => {
       workflow,
       'CI 应校验 PR head sha。若失败：检查 range 是否只校验了单点而不是完整合入范围',
     ).toContain('github.event.pull_request.head.sha');
+    expect(
+      workflow,
+      'PR 提交消息 workflow 应在编辑 PR 描述时重新触发。若失败：检查 PR body 修改后是否不会重新校验',
+    ).toContain('edited');
+    expect(
+      workflow,
+      'PR 提交消息 workflow 应校验 PR title/body。若失败：检查默认 squash commit message 是否可能不合规',
+    ).toContain('scripts/verify-pr-message.mjs');
+    expect(
+      workflow,
+      'PR title/body 校验应读取 PR 标题。若失败：检查最终 squash 标题是否没有进入校验',
+    ).toContain('PR_TITLE');
+    expect(
+      workflow,
+      'PR title/body 校验应读取 PR 描述。若失败：检查最终 squash 正文是否没有进入校验',
+    ).toContain('PR_BODY');
   });
 
   it('main push 会校验合并后的提交消息范围', () => {
