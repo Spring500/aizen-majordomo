@@ -48,15 +48,27 @@ describe('GitHub Actions CI 门禁', () => {
     ).toContain(
       'node scripts/ci-step.mjs --name "Run Playwright" -- pnpm test:e2e',
     );
+    expect(
+      workflow,
+      'CI 应在所有计时步骤后统一发布摘要。若失败：检查 Actions Summary 是否会拆成多个重复小节',
+    ).toContain('Publish CI timing summary');
+    expect(
+      workflow,
+      'CI 统一发布摘要应在失败时也执行。若失败：检查失败步骤之后是否还能看到已完成步骤耗时',
+    ).toContain('if: always()');
   });
 
-  it('CI 计时脚本会写入 GitHub job summary', () => {
+  it('CI 计时脚本会先写入临时明细，再由最后一步发布 GitHub job summary', () => {
     const script = readFileSync(join(process.cwd(), 'scripts', 'ci-step.mjs'), 'utf8');
 
     expect(
       script,
-      'CI 计时脚本应读取 GITHUB_STEP_SUMMARY。若失败：检查 Actions 页面是否能展示步骤摘要',
-    ).toContain('GITHUB_STEP_SUMMARY');
+      'CI 计时脚本应读取 CI_STEP_TIMINGS_FILE。若失败：检查跨 step 汇总是否会丢失中间结果',
+    ).toContain('CI_STEP_TIMINGS_FILE');
+    expect(
+      script,
+      'CI 计时脚本不应直接写 GITHUB_STEP_SUMMARY。若失败：检查 Actions Summary 是否会被拆成多个 step 小节',
+    ).not.toContain('GITHUB_STEP_SUMMARY');
     expect(
       script,
       'CI 计时脚本应记录成功状态。若失败：检查成功步骤摘要是否可读',
@@ -69,6 +81,17 @@ describe('GitHub Actions CI 门禁', () => {
       script,
       'CI 计时脚本应记录耗时。若失败：检查摘要是否能定位慢步骤',
     ).toContain('duration');
+
+    const workflow = readCiWorkflow();
+
+    expect(
+      workflow,
+      'CI 应由最后一步读取临时明细并写入 GITHUB_STEP_SUMMARY。若失败：检查 Summary 是否无法集中展示',
+    ).toContain('GITHUB_STEP_SUMMARY');
+    expect(
+      workflow,
+      'CI 应使用同一个临时明细文件串联多个 step。若失败：检查计时结果是否无法跨 step 聚合',
+    ).toContain('ci-step-timings.md');
   });
 
   it('Playwright 启动服务不重复构建前端', () => {
