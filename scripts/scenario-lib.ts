@@ -9,10 +9,12 @@ import { upsertConfig } from '../src/config/repository.ts';
 export const SCENARIOS_DIR = resolve(process.cwd(), 'scenarios');
 export const AGENT_KIT_CONFIGS_DIR = resolve(process.cwd(), 'agent-kit', 'configs');
 export const SCENARIO_ROOTS = [SCENARIOS_DIR, AGENT_KIT_CONFIGS_DIR];
+const scenarioDbBaseDir = process.env.SCENARIO_DB_DIR ?? join('data', 'scenarios');
+// Base directory for generated scenario DBs. Tests inject SCENARIO_DB_DIR and
+// Vitest workers append their pool id to avoid concurrent SQLite file reuse.
 export const SCENARIO_DB_DIR = resolve(
   process.cwd(),
-  process.env.SCENARIO_DB_DIR ??
-    (process.env.VITEST_POOL_ID ? join('data', 'scenarios', `vitest-${process.env.VITEST_POOL_ID}`) : join('data', 'scenarios')),
+  process.env.VITEST_POOL_ID ? join(scenarioDbBaseDir, `pool-${process.env.VITEST_POOL_ID}`) : scenarioDbBaseDir,
 );
 const SCENARIO_ORDER = [
   'default-sample',

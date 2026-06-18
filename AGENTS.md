@@ -1,6 +1,6 @@
 # AGENTS.md
 
-面向 AI agent 的最小协作规则。推荐开发流程、提交、PR 和 CI 规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+面向 AI agent 的最小协作规则。通用提交、PR 和 CI 规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 开发位置
 
@@ -24,8 +24,15 @@
 - PR 必须通过 GitHub required checks。
 - 本地 hook 只是即时反馈；远端 branch protection + CI 是硬门禁。
 
-## 落地方式
+## 开发流程
 
-- 推荐流程见 [CONTRIBUTING.md](CONTRIBUTING.md) 的“推荐开发流程”。
-- 本地 `main` 合并只用于特殊验证或离线场景。
-- 私有分支临时 WIP 快照可用 `git commit --no-verify`；其余场景不要绕过 hook。
+1. 从最新 `main` 创建 worktree 和任务分支。
+2. 在 worktree 中实现、测试和提交，不在 `main` 上做日常开发。
+3. 推送任务分支并创建或更新 PR。
+4. 创建或更新 PR 后，必须等待 GitHub required checks 完成。
+5. checks 失败时，agent 必须读取失败日志、定位原因、修复问题、推送更新，并再次等待 checks。
+6. checks 通过后，agent 只向人类报告 PR 链接、验证结果和“可以人工审核”；不要自行合并 PR。
+
+只有缺少权限、外部服务不可用，或同一阻塞条件连续复现且无法靠代码修复时，才向人类报告阻塞原因和已查证的信息。
+
+私有分支临时 WIP 快照可用 `git commit --no-verify`；其余场景不要绕过 hook。

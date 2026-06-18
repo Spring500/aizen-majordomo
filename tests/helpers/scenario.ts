@@ -3,7 +3,9 @@ import { join, resolve } from 'node:path';
 import { serve } from '@hono/node-server';
 import type { Server } from 'node:http';
 import { copyScenarioDb, finalScenarioConfigPath, prepareScenario } from '../../scripts/scenario-lib.ts';
+import { runtimeDbDir } from './test-runtime.ts';
 
+// Scenario HTTP helpers for tests that need a real Hono server and mutable DB.
 export interface ScenarioRuntime {
   scenarioId: string;
   dbPath: string;
@@ -15,8 +17,10 @@ export interface ScenarioServer {
   close: () => Promise<void>;
 }
 
+// Copies a prepared scenario DB into this test run's runtime area.
+// Each copy includes process/time in the filename so tests can mutate it freely.
 export async function prepareScenarioRuntime(scenarioId: string): Promise<ScenarioRuntime> {
-  const dir = resolve(process.cwd(), '.tmp', 'e2e', `vitest-${process.env.VITEST_POOL_ID ?? 'local'}`);
+  const dir = resolve(runtimeDbDir('vitest'), `pool-${process.env.VITEST_POOL_ID ?? 'local'}`);
   mkdirSync(dir, { recursive: true });
   const dbPath = join(dir, `${scenarioId}-${process.pid}-${Date.now()}.db`);
   await prepareScenario(scenarioId);
@@ -24,6 +28,7 @@ export async function prepareScenarioRuntime(scenarioId: string): Promise<Scenar
   return { scenarioId, dbPath, configSeedPath: finalScenarioConfigPath(scenarioId) };
 }
 
+// Temporarily exposes the runtime DB path while constructing app dependencies.
 function withRuntimeEnv<T>(runtime: ScenarioRuntime, run: () => T): T {
   const previousDbPath = process.env.DB_PATH;
   const previousSeedPath = process.env.CONFIG_SEED_PATH;
@@ -45,6 +50,8 @@ function withRuntimeEnv<T>(runtime: ScenarioRuntime, run: () => T): T {
   }
 }
 
+// Starts a Hono scenario server on a dynamic port by default.
+// Returns the resolved base URL plus an explicit close hook for SQLite cleanup.
 export async function startScenarioServer(
   runtime: ScenarioRuntime,
   options: { port?: number } = {},

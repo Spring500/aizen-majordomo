@@ -1,15 +1,6 @@
 # CONTRIBUTING
 
-本文件说明本项目的开发、提交、测试、PR 和 CI 规则。涉及开发流程的完整规则以本文为准；AI agent 的额外硬约束见 [AGENTS.md](AGENTS.md)。
-
-## 推荐开发流程
-
-1. 从最新 `main` 开始，创建独立分支。
-2. 修改代码或文档，并按风险运行本地验证。
-3. 使用合规提交信息提交。
-4. 推送分支并创建 PR。
-5. 等待 GitHub required checks 通过。
-6. 合并 PR，并按个人习惯同步本地仓库、清理分支或 worktree。
+本文件说明本项目的提交、测试、PR 和 CI 规则。AI agent 的额外硬约束见 [AGENTS.md](AGENTS.md)。
 
 ## 开发位置
 
@@ -25,15 +16,6 @@ GitHub 远端 `main` 已启用 branch protection：
 - 必须通过 GitHub required checks。
 - 禁止 force push 和删除 `main`。
 - 管理员也受保护规则约束。
-
-标准流程：
-
-```bash
-git switch -c codex/<任务名>
-# 修改、测试、提交
-git push -u origin codex/<任务名>
-# 在 GitHub 创建 PR，等待 CI 通过后合并
-```
 
 ## 本地门禁
 
@@ -122,6 +104,9 @@ pnpm typecheck
 要求：
 
 - 写任何测试时，每个 `expect` 都要带中文辅助信息，说明失败意味着什么、应该查什么。
+- 浏览器 E2E 使用相对路径，例如 `page.goto('/')`；不要在用例里写固定端口。
+- 需要启动场景服务时使用 `tests/helpers/scenario.ts`，不要手写监听端口或共享 DB 路径。
+- 测试运行产物必须使用测试运行目录，不写入正式 `data/`。
 - 分支提交前至少保持 `pnpm test` 通过。
 - 涉及前端或用户流程时运行 `pnpm test:e2e`。
 - 未实现的行为规格先用 `it.todo` 或 `it.skip` 占位；实现时再换成真实断言。

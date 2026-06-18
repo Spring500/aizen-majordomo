@@ -14,7 +14,7 @@
     "start": "node --experimental-sqlite --no-warnings --import tsx src/index.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test",
+    "test:e2e": "node --no-warnings --import tsx scripts/run-playwright-e2e.ts",
     "scenario:list": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts list",
     "scenario:prepare": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts prepare",
     "scenario:start": "node --experimental-sqlite --no-warnings --import tsx scripts/scenario.ts start",
