@@ -81,6 +81,10 @@ describe('GitHub Actions CI 门禁', () => {
       script,
       'CI 计时脚本应记录耗时。若失败：检查摘要是否能定位慢步骤',
     ).toContain('duration');
+    expect(
+      script,
+      'CI 计时脚本应统一用秒展示耗时。若失败：检查 Summary 是否仍混用毫秒和秒',
+    ).toContain('toFixed(1)');
 
     const workflow = readCiWorkflow();
 
@@ -134,6 +138,22 @@ describe('GitHub Actions CI 门禁', () => {
       workflow,
       'CI 应校验 PR head sha。若失败：检查 range 是否只校验了单点而不是完整合入范围',
     ).toContain('github.event.pull_request.head.sha');
+    expect(
+      workflow,
+      'PR 提交消息 workflow 应在编辑 PR 描述时重新触发。若失败：检查 PR body 修改后是否不会重新校验',
+    ).toContain('edited');
+    expect(
+      workflow,
+      'PR 提交消息 workflow 应校验 PR title/body。若失败：检查默认 squash commit message 是否可能不合规',
+    ).toContain('scripts/verify-pr-message.mjs');
+    expect(
+      workflow,
+      'PR title/body 校验应读取 PR 标题。若失败：检查最终 squash 标题是否没有进入校验',
+    ).toContain('PR_TITLE');
+    expect(
+      workflow,
+      'PR title/body 校验应读取 PR 描述。若失败：检查最终 squash 正文是否没有进入校验',
+    ).toContain('PR_BODY');
   });
 
   it('main push 会校验合并后的提交消息范围', () => {
