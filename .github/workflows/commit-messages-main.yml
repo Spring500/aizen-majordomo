@@ -1,4 +1,4 @@
-name: Commit messages
+name: Validate commit message format
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
 
 jobs:
   commit-messages:
-    name: Commit messages
+    name: Validate commit message format
     runs-on: ubuntu-latest
 
     steps:

@@ -1,11 +1,11 @@
-name: Commit messages
+name: Validate commit message format
 
 on:
   pull_request:
 
 jobs:
   commit-messages:
-    name: Commit messages
+    name: Validate commit message format
     runs-on: ubuntu-latest
 
     steps:
