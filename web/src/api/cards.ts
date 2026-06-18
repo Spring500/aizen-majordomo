@@ -84,3 +84,21 @@ export async function runCardAction(
   });
   return (await parseResponse<CardResponse>(res)).card;
 }
+
+/**
+ * 执行一条卡片状态流转。
+ *
+ * 调用方必须传入配置中的 transitionId；后端会校验当前状态、卡片类型和可写字段，
+ * 成功后返回最新卡片。普通字段保存仍应使用 updateCard。
+ */
+export async function runCardTransition(
+  id: string,
+  input: { transitionId: string; fields?: Record<string, unknown>; comment?: string },
+): Promise<Card> {
+  const res = await fetch(`/cards/${id}/transition`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...input, fields: input.fields ?? {} }),
+  });
+  return (await parseResponse<CardResponse>(res)).card;
+}

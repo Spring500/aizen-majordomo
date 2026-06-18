@@ -31,6 +31,11 @@ function cardSecondaryText(card: Card, fields: FieldDefinition[], primary: strin
   return '';
 }
 
+/**
+ * 配置化卡片列表。
+ *
+ * 列表主副信息来自卡片快捷字段或卡片类型字段配置，状态标签来自 config.statuses。
+ */
 export function CardList({
   cards,
   config,
@@ -53,7 +58,7 @@ export function CardList({
         const fields = configuredFields(card, config);
         const primary = cardPrimaryText(card, fields);
         const secondary = cardSecondaryText(card, fields, primary);
-        const waitingReply = card.type === 'decision' && card.status === 'waiting' && !card.reply && !card.fields.reply;
+        const status = config.statuses.find((item) => item.id === card.status);
         return (
           <button
             className={`card-row ${selectedId === card.id ? 'selected' : ''}`}
@@ -66,7 +71,7 @@ export function CardList({
               <strong>{primary}</strong>
               {secondary && <small>{secondary}</small>}
             </span>
-            {waitingReply && <span className="status-pill waiting">等待回复</span>}
+            <span className={`status-pill ${card.status}`}>{status?.name ?? card.status}</span>
             {card.priority !== null && <span className="priority">P{card.priority}</span>}
             {card.assignee && <span className="assignee">{card.assignee}</span>}
           </button>

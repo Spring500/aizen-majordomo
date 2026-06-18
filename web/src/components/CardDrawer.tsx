@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import type { AppConfig, Card, CardTypeConfig } from '../types.ts';
+import type { AppConfig, Card, CardTypeConfig, TransitionConfig } from '../types.ts';
 import { DynamicFieldInput } from './DynamicFields.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
 
@@ -8,43 +8,108 @@ function actionFields(cardType: CardTypeConfig | undefined, actionId: string) {
   return action?.writableFields.map((fieldId) => cardType?.fields.find((field) => field.id === fieldId)).filter(Boolean) ?? [];
 }
 
-function hasAction(cardType: CardTypeConfig | undefined, actionId: string) {
-  return Boolean(cardType?.actions.find((item) => item.id === actionId && item.enabled !== false));
+function availableTransitions(config: AppConfig, card: Card | null) {
+  if (!card) return [];
+  return config.transitions.filter(
+    (transition) =>
+      transition.enabled !== false &&
+      (transition.cardType === null || transition.cardType === undefined || transition.cardType === card.type) &&
+      (transition.fromStatus === null || transition.fromStatus === undefined || transition.fromStatus === card.status),
+  );
 }
 
+function TransitionAction({
+  transition,
+  cardType,
+  card,
+  onRun,
+}: {
+  transition: TransitionConfig;
+  cardType: CardTypeConfig | undefined;
+  card: Card;
+  onRun: (fields: Record<string, unknown>) => Promise<void>;
+}) {
+  const writableFields = transition.writableFields
+    .map((fieldId) => cardType?.fields.find((field) => field.id === fieldId))
+    .filter(Boolean);
+  const [fields, setFields] = useState<Record<string, unknown>>({});
+  const [running, setRunning] = useState(false);
+
+  useEffect(() => {
+    setFields({});
+    setRunning(false);
+  }, [card.id, transition.id]);
+
+  async function submit() {
+    const nextFields = { ...fields };
+    for (const field of writableFields) {
+      if (field?.id === 'replied_by' && nextFields.replied_by === undefined) {
+        nextFields.replied_by = 'human';
+      }
+    }
+    setRunning(true);
+    try {
+      await onRun(nextFields);
+      setFields({});
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  return (
+    <div className="transition-action">
+      {writableFields.map((field) =>
+        field ? (
+          <DynamicFieldInput
+            key={field.id}
+            field={field}
+            value={fields[field.id] ?? card.fields[field.id]}
+            onChange={(value) => setFields((current) => ({ ...current, [field.id]: value }))}
+          />
+        ) : null,
+      )}
+      <button className="button secondary" type="button" onClick={submit} disabled={running}>
+        {running ? '执行中...' : transition.name}
+      </button>
+    </div>
+  );
+}
+
+/**
+ * 卡片详情抽屉。
+ *
+ * 普通字段保存通过 onSave 完成；状态变化必须通过 onTransition 执行配置化 transition，
+ * 因此该组件只展示 status，不提供直接编辑 status 的入口。
+ */
 export function CardDrawer({
   card,
   config,
   open,
   onClose,
   onSave,
-  onReply,
+  onTransition,
 }: {
   card: Card | null;
   config: AppConfig;
   open: boolean;
   onClose: () => void;
   onSave: (input: { fields: Record<string, unknown> }) => Promise<void>;
-  onReply: (input: { fields: Record<string, unknown> }) => Promise<void>;
+  onTransition: (input: { transitionId: string; fields?: Record<string, unknown>; comment?: string }) => Promise<void>;
 }) {
   const [fields, setFields] = useState<Record<string, unknown>>({});
-  const [reply, setReply] = useState('');
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [replying, setReplying] = useState(false);
   const cardType = config.cardTypes.find((item) => item.id === card?.type);
   const fieldsToRender = useMemo(() => actionFields(cardType, 'update'), [cardType]);
-  const canReply = hasAction(cardType, 'reply');
+  const transitions = useMemo(() => availableTransitions(config, card), [config, card]);
   const existingReply = typeof card?.fields.reply === 'string' ? card.fields.reply : card?.reply;
   const repliedBy = card?.fields.replied_by ?? card?.replied_by ?? 'human';
   const statusLabel = config.statuses.find((status) => status.id === card?.status)?.name ?? card?.status ?? '';
 
   useEffect(() => {
     setFields(card?.fields ?? {});
-    setReply('');
     setError('');
     setSaving(false);
-    setReplying(false);
   }, [card]);
 
   if (!card) {
@@ -67,16 +132,12 @@ export function CardDrawer({
     }
   }
 
-  async function submitReply() {
+  async function submitTransition(transition: TransitionConfig, nextFields: Record<string, unknown>) {
     try {
       setError('');
-      setReplying(true);
-      await onReply({ fields: { reply, replied_by: 'human' } });
-      setReply('');
+      await onTransition({ transitionId: transition.id, fields: nextFields });
     } catch (err) {
-      setError(err instanceof Error ? err.message : '提交回复失败');
-    } finally {
-      setReplying(false);
+      setError(err instanceof Error ? err.message : '执行流转失败');
     }
   }
 
@@ -109,31 +170,31 @@ export function CardDrawer({
               />
             ) : null,
           )}
-          {canReply && (
+          {existingReply && (
             <section className="reply-panel" aria-label="正式回复">
               <h3>正式回复</h3>
-              {existingReply ? (
-                <div className="reply-content">
-                  <span>回复人：{String(repliedBy)}</span>
-                  <p>{existingReply}</p>
-                </div>
-              ) : (
-                <div className="reply-form">
-                  <label className="field">
-                    <span>回复内容</span>
-                    <textarea
-                      aria-label="回复内容"
-                      value={reply}
-                      onChange={(event) => setReply(event.target.value)}
-                    />
-                  </label>
-                  <button className="button primary" type="button" onClick={submitReply} disabled={replying}>
-                    提交回复
-                  </button>
-                </div>
-              )}
+              <div className="reply-content">
+                <span>回复人：{String(repliedBy)}</span>
+                <p>{existingReply}</p>
+              </div>
             </section>
           )}
+          <section className="transition-panel" aria-label="状态流转">
+            <h3>状态流转</h3>
+            {transitions.length === 0 ? (
+              <p className="transition-empty">当前状态没有可执行流转。</p>
+            ) : (
+              transitions.map((transition) => (
+                <TransitionAction
+                  key={transition.id}
+                  transition={transition}
+                  cardType={cardType}
+                  card={card}
+                  onRun={(nextFields) => submitTransition(transition, nextFields)}
+                />
+              ))
+            )}
+          </section>
         </div>
       </div>
       <div className="drawer-foot">

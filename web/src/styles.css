@@ -465,7 +465,7 @@ button {
 
 .card-row {
   display: grid;
-  grid-template-columns: 92px minmax(0, 1fr) 104px 92px;
+  grid-template-columns: 92px minmax(0, 1fr) 104px 44px 92px;
   align-items: center;
   gap: 12px;
   min-height: 74px;
@@ -701,6 +701,34 @@ button {
   gap: 10px;
 }
 
+.transition-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px 0 0;
+  border-top: 1px solid var(--line);
+}
+
+.transition-panel h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.transition-action {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.transition-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
 .error-box {
   margin-bottom: 12px;
   padding: 9px 10px;
@@ -756,7 +784,7 @@ button {
   }
 
   .card-row {
-    grid-template-columns: 84px minmax(0, 1fr) 84px;
+    grid-template-columns: 84px minmax(0, 1fr) 84px 44px;
   }
 
   .assignee {

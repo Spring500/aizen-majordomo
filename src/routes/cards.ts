@@ -3,6 +3,7 @@ import type { AppEnv } from '../types.ts';
 import { recordChange } from '../changes/repository.ts';
 import { readConfig } from '../config/repository.ts';
 import { runCardAction } from '../cards/actions.ts';
+import { runCardTransition } from '../cards/transitions.ts';
 import {
   createCard,
   enabledStatusExists,
@@ -33,6 +34,33 @@ function parseFieldFilterValue(field: NonNullable<ReturnType<typeof findField>>,
   }
   if (field.kind === 'stringList') return rawValue;
   return undefined;
+}
+
+function normalizeTransitionBody(input: unknown):
+  | { ok: true; value: { transitionId: string; fields: Record<string, unknown>; comment?: string } }
+  | { ok: false; error: { field: string; reason: string } } {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    return { ok: false, error: { field: 'body', reason: '请求体必须是对象' } };
+  }
+  const body = input as Record<string, unknown>;
+  if (typeof body.transitionId !== 'string' || body.transitionId.trim().length === 0) {
+    return { ok: false, error: { field: 'transitionId', reason: 'transitionId 不能为空' } };
+  }
+  const fields = body.fields === undefined ? {} : body.fields;
+  if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {
+    return { ok: false, error: { field: 'fields', reason: 'fields 必须是对象' } };
+  }
+  if (body.comment !== undefined && typeof body.comment !== 'string') {
+    return { ok: false, error: { field: 'comment', reason: 'comment 必须是字符串' } };
+  }
+  return {
+    ok: true,
+    value: {
+      transitionId: body.transitionId,
+      fields: fields as Record<string, unknown>,
+      comment: body.comment,
+    },
+  };
 }
 
 cards.get('/', (c) => {
@@ -141,6 +169,28 @@ cards.post('/:id/actions/:actionId', async (c) => {
   if (!result.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', result.error);
 
   return c.json({ card: result.card, change: result.change });
+});
+
+cards.post('/:id/transition', async (c) => {
+  const parsed = normalizeTransitionBody(await c.req.json().catch(() => undefined));
+  if (!parsed.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', parsed.error);
+
+  const config = readConfig(c.get('db'));
+  const result = runCardTransition(c.get('db'), config, {
+    cardId: c.req.param('id'),
+    transitionId: parsed.value.transitionId,
+    fields: parsed.value.fields,
+    comment: parsed.value.comment,
+    actor: c.req.header('X-Actor') ?? 'human',
+  });
+
+  if (!result.ok && result.status === 404) return notFound(c);
+  if (!result.ok && result.status === 409) {
+    return c.json({ error: { code: 'TRANSITION_CONFLICT', message: '当前状态不允许执行该流转', details: result.error } }, 409);
+  }
+  if (!result.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...result.error });
+
+  return c.json({ card: result.card, change: result.change, comment: result.comment });
 });
 
 cards.patch('/:id', async (c) => {

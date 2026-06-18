@@ -15,7 +15,7 @@ const config: AppConfig = {
       actions: [],
     },
   ],
-  statuses: [],
+  statuses: [{ id: 'triage', name: '分拣' }],
   transitions: [],
   hookActionModels: [],
   hooks: [],
@@ -65,7 +65,7 @@ describe('配置化卡片列表展示', () => {
           actions: [],
         },
       ],
-      statuses: [],
+      statuses: [{ id: 'waiting', name: '等待回复' }],
       transitions: [],
       hookActionModels: [],
       hooks: [],
@@ -84,6 +84,9 @@ describe('配置化卡片列表展示', () => {
     );
 
     expect(html, '等待回复 decision 应显示等待回复标记。若失败：检查 CardList 是否识别 decision/waiting/reply').toContain(
+      '等待回复',
+    );
+    expect(html, '列表应使用配置化状态名称展示状态标签。若失败：检查 CardList 是否映射 config.statuses').toContain(
       '等待回复',
     );
   });

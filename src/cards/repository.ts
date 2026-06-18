@@ -251,3 +251,26 @@ export function updateCard(db: DatabaseSync, id: string, input: UpdateCardInput)
   db.prepare('UPDATE cards SET updated_at = @updated_at WHERE id = @id').run({ id, updated_at: now });
   return findCardById(db, id);
 }
+
+/**
+ * 在一次卡片业务操作中更新状态和字段。
+ *
+ * transition 服务使用该函数保证 `cards.status`、字段值和 `updated_at`
+ * 表达同一次状态流转的结果；调用方负责开启事务和完成业务校验。
+ */
+export function updateCardStateAndFields(
+  db: DatabaseSync,
+  id: string,
+  input: { status: string; fields: Record<string, unknown> },
+): Card | null {
+  const existing = findCardById(db, id);
+  if (!existing) return null;
+  const now = Date.now();
+  writeFieldValues(db, id, input.fields, now);
+  db.prepare('UPDATE cards SET status = @status, updated_at = @updated_at WHERE id = @id').run({
+    id,
+    status: input.status,
+    updated_at: now,
+  });
+  return findCardById(db, id);
+}
