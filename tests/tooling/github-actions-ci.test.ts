@@ -35,6 +35,10 @@ describe('GitHub Actions CI 门禁', () => {
 
     expect(
       workflow,
+      'PR 提交消息 workflow 应使用直观的展示名。若失败：检查 GitHub checks 是否会显示模糊名称',
+    ).toContain('Validate commit message format');
+    expect(
+      workflow,
       'PR 提交消息 workflow 只应在 PR 上触发。若失败：检查是否会在 push 事件产生 skipped 噪音',
     ).toContain('pull_request:');
     expect(
@@ -54,6 +58,10 @@ describe('GitHub Actions CI 门禁', () => {
   it('main push 会校验合并后的提交消息范围', () => {
     const workflow = readWorkflow('commit-messages-main.yml');
 
+    expect(
+      workflow,
+      'main 提交消息 workflow 应使用直观的展示名。若失败：检查 GitHub checks 是否会显示模糊名称',
+    ).toContain('Validate commit message format');
     expect(
       workflow,
       'main 提交消息 workflow 应在 push 上触发。若失败：检查合并后提交消息门禁是否缺失',
