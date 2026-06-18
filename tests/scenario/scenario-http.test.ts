@@ -1,10 +1,5 @@
-import { rmSync } from 'node:fs';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { prepareScenarioRuntime, startScenarioServer } from '../helpers/scenario.ts';
-
-afterEach(() => {
-  rmSync(`.tmp/e2e/vitest-${process.env.VITEST_POOL_ID ?? 'local'}`, { recursive: true, force: true });
-});
 
 async function withScenario<T>(id: string, run: (url: string) => Promise<T>): Promise<T> {
   const runtime = await prepareScenarioRuntime(id);

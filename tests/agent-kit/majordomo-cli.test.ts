@@ -1,15 +1,10 @@
 import { execFile } from 'node:child_process';
-import { rmSync } from 'node:fs';
 import { promisify } from 'node:util';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { prepareScenarioRuntime, startScenarioServer } from '../helpers/scenario.ts';
 
 const execFileAsync = promisify(execFile);
 const skillDir = 'agent-kit/skills/majordomo';
-
-afterEach(() => {
-  rmSync(`.tmp/e2e/vitest-${process.env.VITEST_POOL_ID ?? 'local'}`, { recursive: true, force: true });
-});
 
 describe('majordomo agent CLI', () => {
   it('ask 创建 waiting decision 并输出 card id 和等待命令', async () => {

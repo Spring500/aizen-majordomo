@@ -13,15 +13,24 @@ import {
 } from '../../scripts/scenario-lib.ts';
 import { readConfig } from '../../src/config/repository.ts';
 
-const generated = SCENARIO_DB_DIR;
 const tmpRoot = join(tmpdir(), 'aizen-scenario-tests');
 
 afterEach(() => {
-  rmSync(generated, { recursive: true, force: true });
   rmSync(tmpRoot, { recursive: true, force: true });
 });
 
 describe('阶段 2 场景数据库工具', () => {
+  it('测试进程使用按 worker 隔离的场景数据库目录', () => {
+    expect(
+      SCENARIO_DB_DIR.includes('.tmp\\test-runs') || SCENARIO_DB_DIR.includes('.tmp/test-runs'),
+      '场景 prepared db 应位于测试运行目录。若失败：检查 vitest.config.ts 是否注入 SCENARIO_DB_DIR',
+    ).toBe(true);
+    expect(
+      SCENARIO_DB_DIR,
+      '场景 prepared db 应按 Vitest worker 隔离。若失败：检查 scenario-lib 是否把 VITEST_POOL_ID 纳入目录',
+    ).toContain(`pool-${process.env.VITEST_POOL_ID}`);
+  });
+
   it('能列出阶段 2 要求的 6 个场景', () => {
     const ids = listScenarios().map((scenario) => scenario.id);
 

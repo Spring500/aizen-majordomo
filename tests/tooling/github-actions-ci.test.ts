@@ -145,6 +145,9 @@ describe('GitHub Actions CI 门禁', () => {
   });
 
   it('Playwright 启动服务不重复构建前端', () => {
+    const pkg = JSON.parse(readFileSync(join(process.cwd(), 'package.json'), 'utf8')) as {
+      scripts: Record<string, string>;
+    };
     const config = readFileSync(join(process.cwd(), 'playwright.config.ts'), 'utf8');
 
     expect(
@@ -155,6 +158,32 @@ describe('GitHub Actions CI 门禁', () => {
       config,
       'Playwright webServer 应只启动 E2E 服务。若失败：检查 E2E 服务启动命令是否被误删',
     ).toContain('scripts/e2e-server.ts');
+    expect(
+      pkg.scripts['test:e2e'],
+      'pnpm test:e2e 应通过 wrapper 注入动态端口。若失败：检查 Playwright config 是否会在多次求值时分配不同端口',
+    ).toContain('scripts/run-playwright-e2e.ts');
+  });
+
+  it('Playwright E2E 不应固定测试端口或复用共享场景数据库', () => {
+    const config = readFileSync(join(process.cwd(), 'playwright.config.ts'), 'utf8');
+    const server = readFileSync(join(process.cwd(), 'scripts', 'e2e-server.ts'), 'utf8');
+
+    expect(
+      config,
+      'Playwright baseURL 不应写死 3000。若失败：检查 e2e 是否会和正式本地服务端口冲突',
+    ).not.toContain('http://127.0.0.1:3000');
+    expect(
+      config,
+      'Playwright webServer.url 不应写死 3000。若失败：检查 e2e 健康检查是否仍依赖固定端口',
+    ).not.toContain('http://127.0.0.1:3000/health');
+    expect(
+      server,
+      'E2E 服务不应固定监听 3000。若失败：检查 scripts/e2e-server.ts 是否读取 PORT',
+    ).not.toContain('port: 3000');
+    expect(
+      config,
+      'Playwright 应为 webServer 注入隔离场景数据库目录。若失败：检查 SCENARIO_DB_DIR 是否传给 e2e server',
+    ).toContain('SCENARIO_DB_DIR');
   });
 
   it('PR 会校验提交消息范围', () => {

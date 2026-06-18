@@ -1,12 +1,8 @@
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { DatabaseSync } from 'node:sqlite';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { prepareScenarioRuntime, startScenarioServer } from '../helpers/scenario.ts';
 import { readConfig } from '../../src/config/repository.ts';
-
-afterEach(() => {
-  rmSync(`.tmp/e2e/vitest-${process.env.VITEST_POOL_ID ?? 'local'}`, { recursive: true, force: true });
-});
 
 describe('阶段 2 E2E 场景 helper', () => {
   it('能为任意场景复制隔离 runtime db', async () => {
@@ -17,8 +13,8 @@ describe('阶段 2 E2E 场景 helper', () => {
 
     expect(existsSync(runtime.dbPath), 'E2E helper 应生成隔离 runtime db。若失败：检查 copyScenarioDb 调用').toBe(true);
     expect(
-      runtime.dbPath.includes('.tmp'),
-      'E2E helper 不应复用 data/scenarios runtime db。若失败：检查临时库路径',
+      runtime.dbPath.includes('.tmp\\test-runs') || runtime.dbPath.includes('.tmp/test-runs'),
+      'E2E helper 应使用按测试运行隔离的目录。若失败：检查 runtime db 是否仍落在固定 .tmp/e2e 或 data/scenarios',
     ).toBe(true);
     expect(
       config.cardTypes.map((item) => item.id),
