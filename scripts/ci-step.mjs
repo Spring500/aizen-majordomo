@@ -31,7 +31,7 @@ function writeTimingRow({ name, status, durationMs, command }) {
   if (!timingsPath) return;
 
   const duration = formatDuration(durationMs);
-  const label = status === 'success' ? 'PASS' : 'FAIL';
+  const label = status === 'success' ? '✅ passed' : '❌ failed';
   const line = `| ${escapeCell(name)} | ${label} ${status} | ${duration} | \`${escapeCell(command)}\` |\n`;
 
   appendFileSync(timingsPath, line, 'utf8');

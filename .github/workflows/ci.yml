@@ -15,15 +15,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         with:
           version: 11.3.0
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: pnpm
@@ -43,17 +43,17 @@ jobs:
       - name: Run Playwright
         run: node scripts/ci-step.mjs --name "Run Playwright" -- pnpm test:e2e
 
-      - name: Publish CI timing summary
+      - name: Publish step results summary
         if: always()
         run: |
           {
-            echo "## CI step timings"
+            echo "## Step results"
             echo ""
             echo "| Step | Status | Duration | Command |"
             echo "| --- | --- | ---: | --- |"
             if [ -f "$CI_STEP_TIMINGS_FILE" ]; then
               cat "$CI_STEP_TIMINGS_FILE"
             else
-              echo "| No timed steps recorded | FAIL missing data | 0ms | \`CI_STEP_TIMINGS_FILE\` |"
+              echo "| No timed steps recorded | ❌ failed | 0.0s | \`CI_STEP_TIMINGS_FILE\` |"
             fi
           } >> "$GITHUB_STEP_SUMMARY"
