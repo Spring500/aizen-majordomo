@@ -76,9 +76,7 @@
 ### 文档
 
 - Modify: `README.md`
-  - 收敛为使用者入口。
-- Create: `docs/development.md`
-  - 承接开发者细节。
+  - 在主干结构上补充阶段 3 和 agent-kit 入口。
 - Modify: `docs/roadmap.md`
   - 仅在阶段 3 范围因 agent kit 正式交付发生变化时更新；不得把完成状态写入路线图。
 
@@ -1276,25 +1274,12 @@ pnpm test:e2e -- tests/e2e/stage3-agent-decision-loop.spec.ts
 
 Expected: PASS。
 
-### Task 8: README 分层和开发者文档
+### Task 8: README 入口补充
 
 **Files:**
 - Modify: `README.md`
-- Create: `docs/development.md`
 
-- [ ] **Step 1: 创建开发者文档**
-
-把 README 中这些内容迁入 `docs/development.md`：
-
-- 技术栈细表。
-- 前端开发说明。
-- 目录结构。
-- 脚本表。
-- 场景命令说明。
-- 数据库表说明。
-- 阶段 2 人工验收细节。
-
-- [ ] **Step 2: 收敛 README**
+- [ ] **Step 1: 保持 README 主干结构**
 
 README 保留：
 
@@ -1305,10 +1290,10 @@ README 保留：
 - 启动。
 - agent-kit 使用入口。
 - 常用命令。
-- 开发者文档链接。
+- `CONTRIBUTING.md` 开发规则链接。
 - 路线图链接。
 
-- [ ] **Step 3: 加 agent-kit 入口**
+- [ ] **Step 2: 加 agent-kit 入口**
 
 README 中加入：
 
@@ -1436,8 +1421,8 @@ pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --opt
    - skill 和 references；如果同时改 CLI 则不要用纯文档提交。
 6. `功能: 前端支持等待回复闭环`
    - 回复区、等待回复筛选、列表标记、E2E。
-7. `文档: 拆分 README 和开发者说明`
-   - README 与 `docs/development.md`。
+7. `文档: 补充 README 阶段三入口`
+   - 在主干 README 结构上补充 agent-kit、CLI 和阶段 3 文档链接。
 
 ## 9. 阶段完成定义
 
@@ -1453,7 +1438,7 @@ pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --opt
 - `pnpm majordomo wait-reply --card-id <id>` 能等待或立即返回已有回复。
 - CLI 不提供超时，不提供 ask/wait-reply 之外的命令。
 - 前端能筛出等待回复 decision 并提交正式回复。
-- README 与 `docs/development.md` 完成分层。
+- README 在主干结构上补充阶段 3 入口，不新增重复的开发者说明文档。
 - S3-T1 到 S3-T11 均有自动化覆盖。
 - 宽屏和窄屏 E2E 覆盖回复闭环。
 - `pnpm test`、`pnpm typecheck`、`pnpm build:web`、`pnpm test:e2e` 通过。

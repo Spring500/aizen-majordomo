@@ -32,7 +32,7 @@
 - 阶段 3 新增独立的 `agent-board-config`，不复用 `default-sample` 的测试职责。
 - `agent-board-config` 沿用核心 id：`task`、`decision`、`memo`、`default`、`active`、`waiting`、`resolved`、`done`。
 - 阶段 3 不暴露 actor 覆盖参数。CLI 创建的 decision actor 固定为 `agent`；网页回复人默认使用 `human`。
-- README 面向普通使用者；开发者细节拆到 `docs/development.md`，README 引用。
+- README 保持主干使用者入口结构；开发流程和 PR 规则继续由 `CONTRIBUTING.md` 承接。
 
 ## 3. Agent Kit 目录
 
@@ -251,12 +251,12 @@ GET /changes?since=<seq>
 - 筛选区提供“等待回复”入口，筛出 `type=decision` 且 `status=waiting` 的卡。
 - 宽屏和窄屏都能找到等待回复卡、打开详情并提交回复。
 
-## 7. 文档分层
+## 7. 文档入口
 
-阶段 3 同步做 README 分层：
+阶段 3 只补充必要入口，不重排主干 README：
 
-- `README.md`：面向使用者，保留项目简介、安装、启动、agent-kit 使用入口和路线图链接。
-- `docs/development.md`：面向开发者，承接技术栈、目录结构、脚本、场景命令、测试、数据库说明。
+- `README.md`：面向使用者，在主干结构上补充 agent-kit 使用入口和阶段 3 链接。
+- `CONTRIBUTING.md`：继续作为开发、提交、测试和 PR 规则入口。
 - `agent-kit/configs/agent-board-config/README.md`：面向人类说明 agent board 配置。
 - `agent-kit/skills/majordomo/SKILL.md`：面向 AI agent 的操作入口。
 
