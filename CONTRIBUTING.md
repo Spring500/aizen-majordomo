@@ -1,19 +1,28 @@
 # CONTRIBUTING
 
-本项目由人类和 AI agent 共同开发。本文件是开发、提交、PR 和 CI 规则的单一事实源；AI agent 的最小规则见 [AGENTS.md](AGENTS.md)。
+本文件说明本项目的开发、提交、测试、PR 和 CI 规则。涉及开发流程的完整规则以本文为准；AI agent 的额外硬约束见 [AGENTS.md](AGENTS.md)。
+
+## 推荐开发流程
+
+1. 从最新 `main` 开始，创建独立分支。
+2. 修改代码或文档，并按风险运行本地验证。
+3. 使用合规提交信息提交。
+4. 推送分支并创建 PR。
+5. 等待 GitHub required checks 通过。
+6. 合并 PR，并按个人习惯同步本地仓库、清理分支或 worktree。
 
 ## 开发位置
 
-- 日常开发必须在分支或 worktree 中进行，不在 `main` 上直接开发。
 - 推荐每项工作使用独立分支，分支名可使用 `codex/<任务名>`。
-- `main` 只接收通过 PR 和 CI 的落地。
+- 需要并行任务或隔离较大改动时，可使用 worktree。
+- 远端 `main` 只接收通过 PR 和 CI 的落地。
 
 ## 远端落地流程
 
 GitHub 远端 `main` 已启用 branch protection：
 
 - 必须通过 PR 合入。
-- 必须通过 required checks：`Commit messages` 和 `Tests`。
+- 必须通过 GitHub required checks。
 - 禁止 force push 和删除 `main`。
 - 管理员也受保护规则约束。
 
@@ -117,7 +126,7 @@ pnpm typecheck
 - 涉及前端或用户流程时运行 `pnpm test:e2e`。
 - 未实现的行为规格先用 `it.todo` 或 `it.skip` 占位；实现时再换成真实断言。
 
-## 本地 main 合并
+## 本地离线合并
 
 日常落地应走 GitHub PR。本地 `main` 合并只用于特殊验证或离线场景。
 
