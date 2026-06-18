@@ -5,7 +5,7 @@
 Run the same command again:
 
 ```powershell
-pnpm majordomo wait-reply --card-id <id>
+node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <id>
 ```
 
 The CLI first reads the current card. If the human already replied, it prints the reply immediately. It does not rely on the previous process still running.

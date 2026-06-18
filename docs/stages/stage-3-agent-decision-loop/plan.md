@@ -55,8 +55,6 @@
   - 让场景工具能发现 `agent-kit/configs/*/scenario.json`。
 - Modify: `scripts/scenario.ts`
   - 列表输出包含 agent kit 配置场景。
-- Modify: `package.json`
-  - 增加 `majordomo` 脚本转发到 skill CLI。
 
 ### 前端
 
@@ -231,13 +229,13 @@ GET /changes?since=0
 参数式：
 
 ```powershell
-pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
+node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
 ```
 
 stdin JSON：
 
 ```powershell
-pnpm majordomo ask --stdin < decision.json
+node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < decision.json
 ```
 
 stdin JSON 结构：
@@ -262,7 +260,7 @@ stdin JSON 结构：
 本次询问的 card id 是：<card-id>
 
 运行以下命令等待回复：
-pnpm majordomo wait-reply --card-id <card-id>
+node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <card-id>
 ```
 
 ### 4.2 `wait-reply`
@@ -270,7 +268,7 @@ pnpm majordomo wait-reply --card-id <card-id>
 命令：
 
 ```powershell
-pnpm majordomo wait-reply --card-id <card-id>
+node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <card-id>
 ```
 
 行为：
@@ -926,7 +924,6 @@ Expected: PASS，prepare 输出 prepared db 路径。
 
 **Files:**
 - Create: `agent-kit/skills/majordomo/scripts/majordomo.mjs`
-- Modify: `package.json`
 - Create: `tests/agent-kit/majordomo-cli.test.ts`
 
 - [ ] **Step 1: 写 CLI 参数解析和 HTTP helper**
@@ -1019,7 +1016,7 @@ async function ask(args) {
 本次询问的 card id 是：${id}
 
 运行以下命令等待回复：
-pnpm majordomo wait-reply --card-id ${id}`);
+node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id ${id}`);
 }
 ```
 
@@ -1083,28 +1080,20 @@ main().catch((error) => {
 });
 ```
 
-- [ ] **Step 6: 添加 package 脚本**
-
-`package.json`：
-
-```json
-"majordomo": "node agent-kit/skills/majordomo/scripts/majordomo.mjs"
-```
-
-- [ ] **Step 7: 写 CLI 单元测试**
+- [ ] **Step 6: 写 CLI 单元测试**
 
 `tests/agent-kit/majordomo-cli.test.ts` 用子进程启动测试服务或复用已有 HTTP helper。至少覆盖：
 
 ```ts
 it('ask 输出 card id 和 wait-reply 命令', async () => {
-  // 使用临时端口启动 app server，运行 pnpm majordomo ask
-  // 断言 stdout 包含“本次询问的 card id 是”和“pnpm majordomo wait-reply --card-id”
+  // 使用临时端口启动 app server，运行 skill 内 CLI ask
+  // 断言 stdout 包含“本次询问的 card id 是”和 skill 内 CLI wait-reply 命令
 });
 ```
 
 每个 `expect` 带中文辅助信息。
 
-- [ ] **Step 8: 跑 CLI 测试**
+- [ ] **Step 7: 跑 CLI 测试**
 
 Run:
 
@@ -1139,16 +1128,16 @@ Use the bundled CLI before writing custom HTTP calls.
 
 ## Ask For A Decision
 
-Run `pnpm majordomo ask` from the project root.
+Run `node agent-kit/skills/majordomo/scripts/majordomo.mjs ask` from the project root.
 
 For short input, use `--title`, `--body`, and repeated `--option`.
-For long or structured input, write a JSON file and run `pnpm majordomo ask --stdin < file.json`.
+For long or structured input, write a JSON file and run `node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < file.json`.
 
 After `ask`, read the returned card id and run the exact `wait-reply` command printed by the CLI.
 
 ## Wait For A Reply
 
-Run `pnpm majordomo wait-reply --card-id <id>`.
+Run `node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <id>`.
 
 Human replies may take a long time. Allow this command to block. Do not infer failure from a long wait.
 
@@ -1302,14 +1291,7 @@ README 中加入：
 
 Agent 协作配置、skill 和 CLI 位于 `agent-kit/`。
 
-常用流程：
-
-```powershell
-pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
-pnpm majordomo wait-reply --card-id <上一步输出的 card id>
-```
-
-人类回复可能间隔很长，`wait-reply` 不设置超时。
+CLI 位于 `agent-kit/skills/majordomo/scripts/majordomo.mjs`。具体 agent 使用流程见 `agent-kit/skills/majordomo/SKILL.md`。
 ```
 
 ### Task 9: 全量验证
@@ -1395,7 +1377,7 @@ pnpm scenario:start agent-board-config --fresh
 2. 用 CLI 创建 decision：
 
 ```powershell
-pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
+node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
 ```
 
 3. 记录 CLI 输出的 card id。
@@ -1416,7 +1398,7 @@ pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --opt
 3. `功能: 增加卡片 action 回复接口`
    - action route、reply 校验和回复事件。
 4. `功能: 交付 agent 看板配置和 CLI`
-   - `agent-kit/configs`、skill CLI、package 脚本、CLI 测试。
+   - `agent-kit/configs`、skill CLI、CLI 测试。
 5. `文档: 补充 majordomo agent skill`
    - skill 和 references；如果同时改 CLI 则不要用纯文档提交。
 6. `功能: 前端支持等待回复闭环`
@@ -1433,9 +1415,9 @@ pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --opt
 - 回复不会自动修改状态。
 - `agent-kit/configs/agent-board-config` 可被场景工具加载。
 - `agent-kit/skills/majordomo` 包含 skill、CLI 和 references。
-- `pnpm majordomo ask` 创建 `status=waiting` 的 decision。
-- `pnpm majordomo ask` 输出 card id 和对应 wait 命令。
-- `pnpm majordomo wait-reply --card-id <id>` 能等待或立即返回已有回复。
+- `node agent-kit/skills/majordomo/scripts/majordomo.mjs ask` 创建 `status=waiting` 的 decision。
+- `node agent-kit/skills/majordomo/scripts/majordomo.mjs ask` 输出 card id 和对应 wait 命令。
+- `node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <id>` 能等待或立即返回已有回复。
 - CLI 不提供超时，不提供 ask/wait-reply 之外的命令。
 - 前端能筛出等待回复 decision 并提交正式回复。
 - README 在主干结构上补充阶段 3 入口，不新增重复的开发者说明文档。

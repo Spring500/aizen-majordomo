@@ -88,14 +88,12 @@ CLI 位于：
 agent-kit/skills/majordomo/scripts/majordomo.mjs
 ```
 
-项目根 `package.json` 提供便捷命令：
+CLI 直接通过 skill 内脚本运行，不在项目根 `package.json` 增加应用层转发：
 
 ```text
-pnpm majordomo ask ...
-pnpm majordomo wait-reply --card-id ...
+node agent-kit/skills/majordomo/scripts/majordomo.mjs ask ...
+node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id ...
 ```
-
-便捷命令只转发到 skill 内脚本，脚本本身仍属于 agent kit。
 
 ## 4. CLI 行为
 
@@ -119,13 +117,13 @@ CLI 连接地址优先级：
 短输入示例：
 
 ```powershell
-pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
+node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
 ```
 
 复杂输入示例：
 
 ```powershell
-pnpm majordomo ask --stdin < decision.json
+node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < decision.json
 ```
 
 `ask` 成功默认输出：
@@ -136,7 +134,7 @@ pnpm majordomo ask --stdin < decision.json
 本次询问的 card id 是：3f2c...
 
 运行以下命令等待回复：
-pnpm majordomo wait-reply --card-id 3f2c...
+node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id 3f2c...
 ```
 
 ### 4.3 `wait-reply`

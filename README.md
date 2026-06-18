@@ -81,7 +81,7 @@ agent-kit/configs/agent-board-config/
 agent-kit/skills/majordomo/
 ```
 
-CLI 可通过 `pnpm majordomo` 运行。具体 agent 使用流程见 [agent-kit/skills/majordomo/SKILL.md](agent-kit/skills/majordomo/SKILL.md)。
+CLI 位于 `agent-kit/skills/majordomo/scripts/majordomo.mjs`。具体 agent 使用流程见 [agent-kit/skills/majordomo/SKILL.md](agent-kit/skills/majordomo/SKILL.md)。
 
 Agent 实战看板配置可作为场景启动：
 
@@ -110,8 +110,6 @@ pnpm scenario:start <场景 id> [--port N] [--fresh]
 | `pnpm dev:web` | 启动 Vite 前端开发服务 |
 | `pnpm build:web` | 构建前端 |
 | `pnpm start` | 启动服务 |
-| `pnpm majordomo ask` | 创建等待人类回复的 decision |
-| `pnpm majordomo wait-reply --card-id <id>` | 等待并读取人类正式回复 |
 | `pnpm test` | 运行快速 Vitest |
 | `pnpm test:e2e` | 运行 Playwright 验收 |
 | `pnpm typecheck` | TypeScript 类型检查 |

@@ -10,7 +10,7 @@ The stage 3 agent board configuration lives at `agent-kit/configs/agent-board-co
 
 ## Statuses
 
-- `waiting`: The card is waiting for human attention. `pnpm majordomo ask` creates decisions in this status.
+- `waiting`: The card is waiting for human attention. The majordomo CLI `ask` command creates decisions in this status.
 - `active`: Work is being handled.
 - `resolved`: The decision or work item has been answered or resolved.
 - `done`: The work is complete.

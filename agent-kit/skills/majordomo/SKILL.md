@@ -9,16 +9,16 @@ Use the bundled CLI before writing custom HTTP calls.
 
 ## Ask For A Decision
 
-Run `pnpm majordomo ask` from the project root.
+Run `node agent-kit/skills/majordomo/scripts/majordomo.mjs ask` from the project root.
 
 For short input, use `--title`, `--body`, and repeated `--option`.
-For long or structured input, write a JSON file and run `pnpm majordomo ask --stdin < file.json`.
+For long or structured input, write a JSON file and run `node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < file.json`.
 
 After `ask`, read the returned card id and run the exact `wait-reply` command printed by the CLI.
 
 ## Wait For A Reply
 
-Run `pnpm majordomo wait-reply --card-id <id>`.
+Run `node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <id>`.
 
 Human replies may take a long time. Allow this command to block. Do not infer failure from a long wait.
 

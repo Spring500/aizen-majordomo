@@ -39,7 +39,7 @@ describe('majordomo agent CLI', () => {
     expect(result.stdout, 'ask 输出应明确说明已创建等待回复的 decision').toContain('已创建等待人类回复的 decision');
     expect(result.stdout, 'ask 输出应包含 card id 提示，便于 agent 复制后续命令').toContain('本次询问的 card id 是：');
     expect(result.stdout, 'ask 输出应包含 wait-reply 命令，便于 agent 直接继续等待').toContain(
-      'pnpm majordomo wait-reply --card-id',
+      'node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id',
     );
   });
 
