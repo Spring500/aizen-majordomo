@@ -30,7 +30,7 @@ describe('CI 步骤计时脚本', () => {
       expect(
         summary,
         '计时摘要应统一使用秒且保留一位小数。若失败：检查耗时格式是否仍混用 ms/s',
-      ).toMatch(/\| Local Check \| PASS success \| \d+\.\ds \|/);
+      ).toMatch(/\| Local Check \| ✅ passed success \| \d+\.\ds \|/);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

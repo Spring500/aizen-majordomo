@@ -50,8 +50,8 @@ describe('GitHub Actions CI 门禁', () => {
     );
     expect(
       workflow,
-      'CI 应在所有计时步骤后统一发布摘要。若失败：检查 Actions Summary 是否会拆成多个重复小节',
-    ).toContain('Publish CI timing summary');
+      'CI 应在所有计时步骤后统一发布结果摘要。若失败：检查 Actions Summary 是否会拆成多个重复小节',
+    ).toContain('Publish step results summary');
     expect(
       workflow,
       'CI 统一发布摘要应在失败时也执行。若失败：检查失败步骤之后是否还能看到已完成步骤耗时',
@@ -94,12 +94,54 @@ describe('GitHub Actions CI 门禁', () => {
     ).toContain('GITHUB_STEP_SUMMARY');
     expect(
       workflow,
+      'Summary 标题应简洁展示 step results。若失败：检查 Summary 章节名是否过窄或重复写 CI',
+    ).toContain('## Step results');
+    expect(
+      script,
+      '状态列应使用 GitHub Summary 中更易扫读的通过图标。若失败：检查成功状态是否不直观',
+    ).toContain('✅ passed');
+    expect(
+      script,
+      '状态列应使用 GitHub Summary 中更易扫读的失败图标。若失败：检查失败状态是否不直观',
+    ).toContain('❌ failed');
+    expect(
+      workflow,
       'CI 应使用同一个临时明细文件串联多个 step。若失败：检查计时结果是否无法跨 step 聚合',
     ).toContain('CI_STEP_TIMINGS_FILE: ci-step-timings.md');
     expect(
       workflow,
       'CI 不应在 job env 中依赖 runner context。若失败：检查 workflow 是否会在创建 job 前解析失败',
     ).not.toContain('runner.temp');
+  });
+
+  it('GitHub Actions 使用 Node 24 运行时版本', () => {
+    for (const workflowName of ['ci.yml', 'commit-messages-pr.yml', 'commit-messages-main.yml']) {
+      const workflow = readWorkflow(workflowName);
+
+      expect(
+        workflow,
+        `${workflowName} 应使用 checkout v6。若失败：检查 GitHub Actions 是否仍提示 Node.js 20 deprecated`,
+      ).toContain('actions/checkout@v6');
+      expect(
+        workflow,
+        `${workflowName} 应使用 setup-node v6。若失败：检查 GitHub Actions 是否仍提示 Node.js 20 deprecated`,
+      ).toContain('actions/setup-node@v6');
+      expect(
+        workflow,
+        `${workflowName} 不应继续引用 v4 actions。若失败：检查 warning 是否来自旧 action runtime`,
+      ).not.toMatch(/actions\/(?:checkout|setup-node)@v4/);
+    }
+
+    const ciWorkflow = readCiWorkflow();
+
+    expect(
+      ciWorkflow,
+      'CI 应使用 pnpm/action-setup v6。若失败：检查 pnpm setup 是否仍提示 Node.js 20 deprecated',
+    ).toContain('pnpm/action-setup@v6');
+    expect(
+      ciWorkflow,
+      'CI 不应继续引用 pnpm/action-setup v4。若失败：检查 warning 是否来自旧 pnpm action runtime',
+    ).not.toContain('pnpm/action-setup@v4');
   });
 
   it('Playwright 启动服务不重复构建前端', () => {
