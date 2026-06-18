@@ -56,7 +56,7 @@ pnpm start
 | `DB_PATH` | `data/majordomo.db` | SQLite 数据库文件路径 |
 | `CONFIG_SEED_PATH` | `scenarios/default-sample/config.json` | 初始化配置种子 |
 
-运行时配置以 SQLite 为事实来源。JSON 配置只作为初始化种子。
+`CONFIG_SEED_PATH` 只用于初始化新数据库；已有数据库不会被 JSON 自动覆盖。
 
 示例：
 
@@ -64,7 +64,7 @@ pnpm start
 PORT=8080 DB_PATH=./data/dev.db pnpm start
 ```
 
-## 基础 API
+## 快速验证
 
 健康检查：
 
@@ -72,78 +72,16 @@ PORT=8080 DB_PATH=./data/dev.db pnpm start
 curl http://localhost:3000/health
 ```
 
-读取配置：
-
-```bash
-curl http://localhost:3000/config
-```
-
-列出卡片：
-
-```bash
-curl http://localhost:3000/cards
-```
-
-创建卡片：
-
-```bash
-curl -X POST http://localhost:3000/cards \
-  -H "Content-Type: application/json" \
-  -d '{"type":"task","status":"active","fields":{"title":"整理阶段 2","body":"验证配置驱动","priority":1,"risk_level":"high"}}'
-```
-
-字段过滤：
-
-```bash
-curl "http://localhost:3000/cards?field.risk_level=high"
-```
-
-创建等待回复 decision：
-
-```bash
-curl -X POST http://localhost:3000/cards \
-  -H "Content-Type: application/json" \
-  -H "X-Actor: agent" \
-  -d '{"type":"decision","status":"waiting","fields":{"title":"是否采用方案 A？","options":["采用 A","采用 B"]}}'
-```
-
-为 decision 提交正式回复：
-
-```bash
-curl -X POST http://localhost:3000/cards/<card-id>/actions/reply \
-  -H "Content-Type: application/json" \
-  -H "X-Actor: human" \
-  -d '{"fields":{"reply":"采用方案 A","replied_by":"human"}}'
-```
-
-读取 changes：
-
-```bash
-curl "http://localhost:3000/changes?since=0"
-```
-
 ## Agent Kit
 
 Agent 协作配置、skill 和 CLI 位于：
 
 ```text
-agent-kit/
+agent-kit/configs/agent-board-config/
+agent-kit/skills/majordomo/
 ```
 
-常用流程：
-
-```powershell
-pnpm majordomo ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
-pnpm majordomo wait-reply --card-id <上一步输出的 card id>
-```
-
-复杂输入使用 stdin JSON：
-
-```powershell
-pnpm majordomo ask --stdin < decision.json
-```
-
-人类回复可能间隔很长，`wait-reply` 不设置超时。
+CLI 可通过 `pnpm majordomo` 运行。具体 agent 使用流程见 [agent-kit/skills/majordomo/SKILL.md](agent-kit/skills/majordomo/SKILL.md)。
 
 Agent 实战看板配置可作为场景启动：
 
