@@ -2,6 +2,11 @@ name: Validate commit message format
 
 on:
   pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - edited
 
 jobs:
   commit-messages:
@@ -18,6 +23,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Verify PR title/body as squash message
+        env:
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: node scripts/verify-pr-message.mjs
 
       - name: Verify PR commit messages
         run: node scripts/verify-range-messages.mjs "${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}"

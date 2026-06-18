@@ -38,7 +38,6 @@ function writeTimingRow({ name, status, durationMs, command }) {
 }
 
 function formatDuration(durationMs) {
-  if (durationMs < 1000) return `${durationMs}ms`;
   return `${(durationMs / 1000).toFixed(1)}s`;
 }
 
