@@ -1,10 +1,11 @@
 # AGENTS.md
 
-面向 AI agent 的最小协作规则。完整开发、提交、PR 和 CI 规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
+面向 AI agent 的最小协作规则。推荐开发流程、提交、PR 和 CI 规则见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 ## 开发位置
 
-- 每项工作新建分支或 worktree。
+- 实现任务必须使用 worktree。
+- 只读检查或极小文档修改可只用独立分支。
 - 不在 `main` 上做日常开发。
 - 远端 `main` 必须通过 PR 和 CI 落地。
 
@@ -20,11 +21,11 @@
 - 写任何测试时，每个 `expect` 都要带中文辅助信息。
 - 分支提交会跑 `pnpm test`。
 - 涉及前端或用户流程时运行 `pnpm test:e2e`。
-- PR 必须通过 GitHub required checks：`Commit messages` 和 `Tests`。
+- PR 必须通过 GitHub required checks。
 - 本地 hook 只是即时反馈；远端 branch protection + CI 是硬门禁。
 
 ## 落地方式
 
-- 标准流程：分支提交 -> push -> PR -> CI 通过 -> merge。
+- 推荐流程见 [CONTRIBUTING.md](CONTRIBUTING.md) 的“推荐开发流程”。
 - 本地 `main` 合并只用于特殊验证或离线场景。
 - 私有分支临时 WIP 快照可用 `git commit --no-verify`；其余场景不要绕过 hook。

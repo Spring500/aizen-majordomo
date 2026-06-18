@@ -38,7 +38,7 @@
 全局门禁仍然必须执行：
 
 - 分支提交前，快速 Vitest 必须通过。
-- 落地 main 前，GitHub PR required checks 必须通过：Commit messages + Tests。
+- 落地 main 前，GitHub PR required checks 必须通过。
 - 新增或修改的测试里，每个 `expect` 都必须带中文辅助信息。
 - README、交接文档或阶段说明中与实际行为不一致的内容必须同步更新。
 - 不得误提交 `data/`、`代理执行笔记/`、`docs/local/` 等本地资料。
