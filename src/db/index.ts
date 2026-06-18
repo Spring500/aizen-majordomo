@@ -23,6 +23,7 @@ export function createDb(path: string = DEFAULT_DB_PATH): DatabaseSync {
 
 export function migrate(db: DatabaseSync): void {
   migrateCardsTable(db);
+  migrateChangesTable(db);
   const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
   initializeConfig(db);
@@ -97,5 +98,43 @@ function migrateCardsTable(db: DatabaseSync): void {
         updated_at: row.updated_at,
       } as Record<string, SQLInputValue>);
     }
+  }
+}
+
+function migrateChangesTable(db: DatabaseSync): void {
+  if (!tableExists(db, 'changes')) return;
+  const columns = columnNames(db, 'changes');
+  if (columns.includes('event') && columns.includes('payload_json')) return;
+
+  const rows = db.prepare('SELECT * FROM changes ORDER BY seq ASC').all() as Array<Record<string, unknown>>;
+  db.exec('ALTER TABLE changes RENAME TO changes_legacy_stage3;');
+  db.exec(`
+    CREATE TABLE changes (
+      seq          INTEGER PRIMARY KEY AUTOINCREMENT,
+      event        TEXT NOT NULL,
+      card_id      TEXT NOT NULL,
+      action       TEXT,
+      field        TEXT,
+      actor        TEXT,
+      payload_json TEXT NOT NULL,
+      at           INTEGER NOT NULL
+    );
+  `);
+
+  const insert = db.prepare(
+    `INSERT INTO changes (seq, event, card_id, action, field, actor, payload_json, at)
+     VALUES (@seq, @event, @card_id, @action, @field, @actor, @payload_json, @at)`,
+  );
+  for (const row of rows) {
+    insert.run({
+      seq: row.seq,
+      event: 'card.updated',
+      card_id: row.card_id,
+      action: null,
+      field: row.field ?? null,
+      actor: row.actor ?? null,
+      payload_json: JSON.stringify({ oldValue: row.old_value ?? null, newValue: row.new_value ?? null }),
+      at: row.at,
+    } as Record<string, SQLInputValue>);
   }
 }

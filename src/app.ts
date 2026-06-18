@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppEnv } from './types.ts';
 import { cards } from './routes/cards.ts';
+import { changes } from './routes/changes.ts';
 import { configRoute } from './routes/config.ts';
 import { mountStatic } from './http/static.ts';
 
@@ -20,6 +21,7 @@ export function createApp(db: DatabaseSync) {
   );
 
   app.route('/config', configRoute);
+  app.route('/changes', changes);
   app.route('/cards', cards);
   mountStatic(app);
 

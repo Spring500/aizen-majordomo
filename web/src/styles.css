@@ -501,9 +501,20 @@ button {
 
 .card-main small,
 .priority,
+.status-pill,
 .assignee {
   color: var(--muted);
   font-size: 12px;
+}
+
+.status-pill {
+  justify-self: start;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: var(--yellow-soft);
+  color: var(--yellow);
+  font-weight: 720;
+  white-space: nowrap;
 }
 
 .badge {
@@ -652,6 +663,42 @@ button {
   color: var(--ink);
   font-size: 13px;
   font-weight: 400;
+}
+
+.reply-panel {
+  display: grid;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.reply-panel h3 {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.reply-content {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel-soft);
+}
+
+.reply-content span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.reply-content p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.reply-form {
+  display: grid;
+  gap: 10px;
 }
 
 .error-box {

@@ -67,4 +67,21 @@ describe('配置化筛选条件列表', () => {
       '应用筛选',
     );
   });
+
+  it('提供等待回复筛选入口', () => {
+    const html = renderToStaticMarkup(
+      <SidebarFilters
+        filters={{ type: '', fields: {} }}
+        counts={{ all: 1 }}
+        config={reviewConfig}
+        open={true}
+        onClose={vi.fn()}
+        onChange={vi.fn()}
+      />,
+    );
+
+    expect(html, '筛选面板应提供等待回复入口。若失败：检查 SidebarFilters 是否包含阶段 3 快捷筛选').toContain(
+      '等待回复',
+    );
+  });
 });

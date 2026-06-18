@@ -53,6 +53,7 @@ export function CardList({
         const fields = configuredFields(card, config);
         const primary = cardPrimaryText(card, fields);
         const secondary = cardSecondaryText(card, fields, primary);
+        const waitingReply = card.type === 'decision' && card.status === 'waiting' && !card.reply && !card.fields.reply;
         return (
           <button
             className={`card-row ${selectedId === card.id ? 'selected' : ''}`}
@@ -65,6 +66,7 @@ export function CardList({
               <strong>{primary}</strong>
               {secondary && <small>{secondary}</small>}
             </span>
+            {waitingReply && <span className="status-pill waiting">等待回复</span>}
             {card.priority !== null && <span className="priority">P{card.priority}</span>}
             {card.assignee && <span className="assignee">{card.assignee}</span>}
           </button>

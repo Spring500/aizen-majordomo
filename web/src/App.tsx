@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getConfig } from './api/config.ts';
-import { createCard, getCard, listCards, updateCard } from './api/cards.ts';
+import { createCard, getCard, listCards, runCardAction, updateCard } from './api/cards.ts';
 import { CardDrawer } from './components/CardDrawer.tsx';
 import { CardList } from './components/CardList.tsx';
 import { CardPagination } from './components/CardPagination.tsx';
@@ -72,6 +72,13 @@ export function App() {
   async function save(input: Parameters<typeof updateCard>[1]) {
     if (!selected) return;
     const card = await updateCard(selected.id, input);
+    setSelected(card);
+    await loadCards();
+  }
+
+  async function reply(input: { fields: Record<string, unknown> }) {
+    if (!selected) return;
+    const card = await runCardAction(selected.id, 'reply', input);
     setSelected(card);
     await loadCards();
   }
@@ -156,7 +163,14 @@ export function App() {
             />
           </div>
         </main>
-        <CardDrawer card={selected} config={config} open={drawerOpen} onClose={() => setDrawerOpen(false)} onSave={save} />
+        <CardDrawer
+          card={selected}
+          config={config}
+          open={drawerOpen}
+          onClose={() => setDrawerOpen(false)}
+          onSave={save}
+          onReply={reply}
+        />
       </div>
       <NewCardDialog config={config} open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={create} />
     </div>

@@ -1,8 +1,8 @@
 # aizen-majordomo
 
-自托管的本地看板系统，同时服务人类与 AI agent。人类用它记录事项、审批决策；agent 用它创建任务、等待人类回复，并通过后续增量能力同步协作状态。
+自托管的本地看板系统，同时服务人类与 AI agent。人类用网页处理事项和回复决策，agent 通过配套交付物参与异步协作。
 
-当前已具备阶段 2 基础配置模型：Hono API、SQLite 持久化、React 前端、配置初始化和读取、配置驱动的新建/编辑/筛选、字段值表存储、场景化配置测试，以及 Vitest + Playwright 验收。鉴权、状态流转执行、changes、评论和 hook 运行器尚未实现。
+当前已具备阶段 3 人机决策闭环 MVP：Hono API、SQLite 持久化、React 前端、配置驱动卡片模型、changes 事件流、reply action、独立 agent board 配置，以及配套 agent skill + CLI。认证、强状态流转、评论和 hook 运行器尚未实现。
 
 ## 当前能力
 
@@ -11,6 +11,7 @@
 - 使用 SQLite 保存运行时数据和配置。
 - 使用场景配置体验不同卡片模型和大量数据。
 - 通过 GitHub PR + CI 保护 `main`，本地 hook 提供提前反馈。
+- 已包含面向 agent 协作的配置、skill 和 CLI 交付物。
 
 ## 环境要求
 
@@ -55,13 +56,15 @@ pnpm start
 | `DB_PATH` | `data/majordomo.db` | SQLite 数据库文件路径 |
 | `CONFIG_SEED_PATH` | `scenarios/default-sample/config.json` | 初始化配置种子 |
 
+`CONFIG_SEED_PATH` 只用于初始化新数据库；已有数据库不会被 JSON 自动覆盖。
+
 示例：
 
 ```bash
 PORT=8080 DB_PATH=./data/dev.db pnpm start
 ```
 
-## 基础 API
+## 快速验证
 
 健康检查：
 
@@ -69,35 +72,9 @@ PORT=8080 DB_PATH=./data/dev.db pnpm start
 curl http://localhost:3000/health
 ```
 
-读取配置：
-
-```bash
-curl http://localhost:3000/config
-```
-
-列出卡片：
-
-```bash
-curl http://localhost:3000/cards
-```
-
-创建卡片：
-
-```bash
-curl -X POST http://localhost:3000/cards \
-  -H "Content-Type: application/json" \
-  -d '{"type":"task","status":"active","fields":{"title":"整理阶段 2","body":"验证配置驱动","priority":1,"risk_level":"high"}}'
-```
-
-字段过滤：
-
-```bash
-curl "http://localhost:3000/cards?field.risk_level=high"
-```
-
 ## 场景体验
 
-阶段 2 提供 6 个场景：`default-sample`、`custom-review-flow`、`status-matrix`、`existing-data-config-change`、`legacy-stage1-migration`、`large-dataset-smoke`。
+阶段 2 提供 6 个场景：`default-sample`、`custom-review-flow`、`status-matrix`、`existing-data-config-change`、`legacy-stage1-migration`、`large-dataset-smoke`。阶段 3 新增面向 agent 实战协作的 `agent-board-config`。
 
 ```bash
 pnpm scenario:list
@@ -124,6 +101,7 @@ pnpm scenario:start <场景 id> [--port N] [--fresh]
 
 ```text
 aizen-majordomo/
+├─ agent-kit/            # 面向 agent 的配置、skill 和 CLI
 ├─ src/                  # Hono API、SQLite、配置和路由
 ├─ web/                  # React + Vite 前端
 ├─ tests/                # Vitest 和 Playwright 测试
@@ -145,7 +123,6 @@ aizen-majordomo/
 - 人类登录与会话
 - agent token 与 RBAC scope
 - 状态流转执行
-- changes 增量读取
 - 评论与协作上下文
 - hook 执行器和外部集成
 - 管理界面、搜索、备份说明和体验打磨
