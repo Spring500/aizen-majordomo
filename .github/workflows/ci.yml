@@ -27,13 +27,16 @@ jobs:
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: node scripts/ci-step.mjs --name "Install dependencies" -- pnpm install --frozen-lockfile
 
       - name: Run Vitest
-        run: pnpm test
+        run: node scripts/ci-step.mjs --name "Run Vitest" -- pnpm test
+
+      - name: Build web
+        run: node scripts/ci-step.mjs --name "Build web" -- pnpm build:web
 
       - name: Install Playwright Chromium
-        run: pnpm exec playwright install --with-deps chromium
+        run: node scripts/ci-step.mjs --name "Install Playwright Chromium" -- pnpm exec playwright install --with-deps chromium
 
       - name: Run Playwright
-        run: pnpm test:e2e
+        run: node scripts/ci-step.mjs --name "Run Playwright" -- pnpm test:e2e
