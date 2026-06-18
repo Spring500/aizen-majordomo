@@ -77,7 +77,7 @@ async function ask(args) {
 本次询问的 card id 是：${id}
 
 运行以下命令等待回复：
-node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id ${id}`);
+node scripts/majordomo.mjs wait-reply --card-id ${id}`);
 }
 
 function extractReply(card) {

@@ -88,11 +88,11 @@ CLI 位于：
 agent-kit/skills/majordomo/scripts/majordomo.mjs
 ```
 
-CLI 直接通过 skill 内脚本运行，不在项目根 `package.json` 增加应用层转发：
+CLI 从 skill 目录直接运行，不在项目根 `package.json` 增加应用层转发：
 
 ```text
-node agent-kit/skills/majordomo/scripts/majordomo.mjs ask ...
-node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id ...
+node scripts/majordomo.mjs ask ...
+node scripts/majordomo.mjs wait-reply --card-id ...
 ```
 
 ## 4. CLI 行为
@@ -117,13 +117,13 @@ CLI 连接地址优先级：
 短输入示例：
 
 ```powershell
-node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
+node scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
 ```
 
 复杂输入示例：
 
 ```powershell
-node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < decision.json
+node scripts/majordomo.mjs ask --stdin < decision.json
 ```
 
 `ask` 成功默认输出：
@@ -134,7 +134,7 @@ node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < decision.jso
 本次询问的 card id 是：3f2c...
 
 运行以下命令等待回复：
-node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id 3f2c...
+node scripts/majordomo.mjs wait-reply --card-id 3f2c...
 ```
 
 ### 4.3 `wait-reply`

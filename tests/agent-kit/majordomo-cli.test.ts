@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { prepareScenarioRuntime, startScenarioServer } from '../helpers/scenario.ts';
 
 const execFileAsync = promisify(execFile);
-const cliPath = 'agent-kit/skills/majordomo/scripts/majordomo.mjs';
+const skillDir = 'agent-kit/skills/majordomo';
 
 afterEach(() => {
   rmSync(`.tmp/e2e/vitest-${process.env.VITEST_POOL_ID ?? 'local'}`, { recursive: true, force: true });
@@ -19,7 +19,7 @@ describe('majordomo agent CLI', () => {
     let result: { stdout: string };
     try {
       result = await execFileAsync('node', [
-        cliPath,
+        'scripts/majordomo.mjs',
         'ask',
         '--base-url',
         server.url,
@@ -31,7 +31,7 @@ describe('majordomo agent CLI', () => {
         '采用 A',
         '--option',
         '采用 B',
-      ]);
+      ], { cwd: skillDir });
     } finally {
       await server.close();
     }
@@ -39,7 +39,7 @@ describe('majordomo agent CLI', () => {
     expect(result.stdout, 'ask 输出应明确说明已创建等待回复的 decision').toContain('已创建等待人类回复的 decision');
     expect(result.stdout, 'ask 输出应包含 card id 提示，便于 agent 复制后续命令').toContain('本次询问的 card id 是：');
     expect(result.stdout, 'ask 输出应包含 wait-reply 命令，便于 agent 直接继续等待').toContain(
-      'node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id',
+      'node scripts/majordomo.mjs wait-reply --card-id',
     );
   });
 
@@ -61,13 +61,13 @@ describe('majordomo agent CLI', () => {
     let result: { stdout: string };
     try {
       result = await execFileAsync('node', [
-        cliPath,
+        'scripts/majordomo.mjs',
         'wait-reply',
         '--base-url',
         server.url,
         '--card-id',
         created.card.id,
-      ]);
+      ], { cwd: skillDir });
     } finally {
       await server.close();
     }

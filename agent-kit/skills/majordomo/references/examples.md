@@ -3,13 +3,13 @@
 ## Short Decision
 
 ```powershell
-node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
+node scripts/majordomo.mjs ask --title "是否采用方案 A？" --body "请确认。" --option "采用 A" --option "采用 B"
 ```
 
 The CLI prints the card id and the exact wait command.
 
 ```powershell
-node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <id>
+node scripts/majordomo.mjs wait-reply --card-id <id>
 ```
 
 ## Structured Decision
@@ -31,7 +31,7 @@ Create `decision.json`:
 Run:
 
 ```powershell
-node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < decision.json
+node scripts/majordomo.mjs ask --stdin < decision.json
 ```
 
 ## Interrupted Wait
@@ -39,7 +39,7 @@ node agent-kit/skills/majordomo/scripts/majordomo.mjs ask --stdin < decision.jso
 If this command is interrupted:
 
 ```powershell
-node agent-kit/skills/majordomo/scripts/majordomo.mjs wait-reply --card-id <id>
+node scripts/majordomo.mjs wait-reply --card-id <id>
 ```
 
 Run it again with the same card id. If the reply already exists, the CLI prints it immediately.
