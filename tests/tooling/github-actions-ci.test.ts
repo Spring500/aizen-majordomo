@@ -91,7 +91,11 @@ describe('GitHub Actions CI 门禁', () => {
     expect(
       workflow,
       'CI 应使用同一个临时明细文件串联多个 step。若失败：检查计时结果是否无法跨 step 聚合',
-    ).toContain('ci-step-timings.md');
+    ).toContain('CI_STEP_TIMINGS_FILE: ci-step-timings.md');
+    expect(
+      workflow,
+      'CI 不应在 job env 中依赖 runner context。若失败：检查 workflow 是否会在创建 job 前解析失败',
+    ).not.toContain('runner.temp');
   });
 
   it('Playwright 启动服务不重复构建前端', () => {
