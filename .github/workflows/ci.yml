@@ -11,7 +11,7 @@ jobs:
     name: Tests
     runs-on: ubuntu-latest
     env:
-      CI_STEP_TIMINGS_FILE: ${{ runner.temp }}/ci-step-timings.md
+      CI_STEP_TIMINGS_FILE: ci-step-timings.md
 
     steps:
       - name: Checkout
