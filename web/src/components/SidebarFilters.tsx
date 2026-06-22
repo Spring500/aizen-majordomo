@@ -115,7 +115,7 @@ export function SidebarFilters({
 
   function clearFieldFilters() {
     setDraftFields({});
-    onChange({ ...filters, assignee: undefined, fields: {} });
+    onChange({ ...filters, fields: {} });
   }
 
   function applyFieldFilters() {
@@ -125,7 +125,7 @@ export function SidebarFilters({
         return field && filterableKinds.has(field.kind) && value !== '';
       }),
     );
-    onChange({ ...filters, assignee: undefined, fields: nextFields });
+    onChange({ ...filters, fields: nextFields });
     onClose();
   }
 

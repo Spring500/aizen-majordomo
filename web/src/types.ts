@@ -145,8 +145,6 @@ export interface CardFilters {
   type: CardType | '';
   /** 状态筛选。 */
   status?: string;
-  /** 负责人筛选。 */
-  assignee?: string;
   /** 配置化字段精确筛选。 */
   fields?: Record<string, string>;
   /** 每页数量。 */

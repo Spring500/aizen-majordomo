@@ -70,8 +70,6 @@ cards.get('/', (c) => {
   const config = readConfig(c.get('db'));
   const url = new URL(c.req.url);
   const rawFieldFilters = fieldFilterEntries(url);
-  if (c.req.query('lane')) rawFieldFilters.push({ fieldId: 'lane', rawValue: c.req.query('lane')! });
-  if (c.req.query('assignee')) rawFieldFilters.push({ fieldId: 'assignee', rawValue: c.req.query('assignee')! });
 
   const fieldFilters = [];
   for (const filter of rawFieldFilters) {

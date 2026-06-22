@@ -192,14 +192,14 @@ describe('阶段 1 卡片 API', () => {
     ).toBe('human');
   });
 
-  it('GET /cards 支持 type、status、lane、assignee 过滤且多个条件为 AND', async () => {
+  it('GET /cards 支持 type、status、field.lane、field.assignee 过滤且多个条件为 AND', async () => {
     const { app, db } = createTestApp();
     insertCard(db, { id: 'card_match', type: 'task', status: 'default', lane: 'work', assignee: 'human' });
     insertCard(db, { id: 'card_type_miss', type: 'memo', status: 'default', lane: 'work', assignee: 'human' });
     insertCard(db, { id: 'card_status_miss', type: 'task', status: 'done', lane: 'work', assignee: 'human' });
     insertCard(db, { id: 'card_assignee_miss', type: 'task', status: 'default', lane: 'work', assignee: 'agent' });
 
-    const res = await app.request('/cards?type=task&status=default&lane=work&assignee=human');
+    const res = await app.request('/cards?type=task&status=default&field.lane=work&field.assignee=human');
     const body = await readJson(res);
 
     expect(
@@ -514,11 +514,11 @@ describe('阶段 2 配置驱动卡片 API', () => {
       'field.risk_level=high 应只返回高风险卡。若失败：检查 enum 字段过滤',
     ).toEqual(['高风险']);
 
-    const aliasRes = await app.request('/cards?assignee=human&all=true');
+    const aliasRes = await app.request('/cards?field.assignee=human&all=true');
     const aliasBody = await readJson(aliasRes);
     expect(
       aliasBody.cards.map((card: any) => card.title),
-      'assignee 兼容别名应等价于 field.assignee。若失败：检查过滤别名映射',
+      'field.assignee=human 应只返回负责人为 human 的卡。若失败：检查字段过滤',
     ).toEqual(['高风险']);
 
     const optionsRes = await app.request('/cards?field.options=右侧抽屉&all=true');
