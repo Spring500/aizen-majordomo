@@ -121,7 +121,7 @@ describe('阶段 1 卡片 API', () => {
     ).toEqual(['右侧抽屉', '单独详情页']);
   });
 
-  it('POST /cards 创建 memo 成功且忽略非 decision 的 options', async () => {
+  it('POST /cards 创建 memo 传未配置字段 options 返回 400', async () => {
     const { app } = createTestApp();
 
     const res = await app.request('/cards', {
@@ -131,12 +131,8 @@ describe('阶段 1 卡片 API', () => {
     });
 
     const body = await readJson(res);
-    expect(res.status, '创建 memo 应返回 201。若失败：检查 create schema 是否接受 memo').toBe(201);
-    expect(body.card.type, '创建 memo 后响应 type 应保持 memo。若失败：检查 INSERT 参数绑定').toBe('memo');
-    expect(
-      body.card.options,
-      '非 decision 的 options 应被忽略并返回 null。若失败：检查 create repository 的 options 归一化',
-    ).toBeNull();
+    expect(res.status, 'memo 未配置 options 字段，传 options 应返回 400 而非静默忽略').toBe(400);
+    expect(body.error.details.field, '错误详情应指出 options 字段').toBe('options');
   });
 
   it('POST /cards 缺少 type、非法 type、缺少 title、纯空白 title 均返回 400 并指出字段', async () => {

@@ -115,9 +115,6 @@ cards.post('/', async (c) => {
   if (!enabledStatusExists(config, status)) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未知状态' });
   }
-  if (!findField(cardType, 'options') && Object.hasOwn(parsed.value.fields, 'options')) {
-    delete parsed.value.fields.options;
-  }
   const actionResult = validateActionFields(cardType, 'create', parsed.value.fields);
   if (!actionResult.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...actionResult.error });
 
