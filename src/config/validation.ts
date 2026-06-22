@@ -92,6 +92,11 @@ const configSchema = z.object({
       system: z.boolean().optional(),
     }),
   ),
+  defaults: z
+    .object({
+      status: z.string().optional(),
+    })
+    .optional(),
 });
 
 function duplicateIds(items: Array<{ id: string }>, label: string, errors: string[]) {
@@ -171,6 +176,10 @@ export function validateConfig(input: unknown): ConfigValidationResult {
         errors.push(`hook ${hook.id} transition action references missing transition ${transitionId ?? ''}`);
       }
     }
+  }
+
+  if (config.defaults?.status && !statusIds.has(config.defaults.status)) {
+    errors.push(`defaults.status references missing status ${config.defaults.status}`);
   }
 
   return errors.length === 0 ? { ok: true } : { ok: false, errors };

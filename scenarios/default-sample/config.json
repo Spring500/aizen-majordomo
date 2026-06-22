@@ -191,5 +191,8 @@
       "system": true,
       "enabled": false
     }
-  ]
+  ],
+  "defaults": {
+    "status": "default"
+  }
 }

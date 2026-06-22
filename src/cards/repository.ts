@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
 import type { AppConfig, CardTypeConfig, FieldDefinition } from '../config/types.ts';
-import { DEFAULT_ACTOR, DEFAULT_STATUS, type Card, type CardCoreRow } from './types.ts';
+import { DEFAULT_ACTOR, type Card, type CardCoreRow } from './types.ts';
 import { serializeCard } from './serialize.ts';
 
 export interface CreateCardInput {
@@ -167,7 +167,7 @@ export function createCard(db: DatabaseSync, input: CreateCardInput): Card {
   const row = {
     id,
     type: input.type,
-    status: input.status ?? DEFAULT_STATUS,
+    status: input.status ?? 'default',
     created_by: input.actor ?? DEFAULT_ACTOR,
     created_at: now,
     updated_at: now,

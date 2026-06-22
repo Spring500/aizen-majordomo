@@ -218,6 +218,14 @@ export interface AppConfig {
   hookActionModels: HookActionModelConfig[];
   /** hook 配置。 */
   hooks: HookConfig[];
+  /** 运行时默认值；未配置时按各模块的兜底逻辑处理。 */
+  defaults?: WorkspaceDefaults;
+}
+
+/** 运行时默认值配置。 */
+export interface WorkspaceDefaults {
+  /** 新建卡片未指定 status 时的默认状态 id，必须引用已启用的状态。 */
+  status?: string;
 }
 
 /** 配置校验结果；失败时 errors 给出可读的配置引用或结构错误。 */

@@ -11,7 +11,6 @@ export interface Card extends CardCoreRow {
   fields: Record<string, unknown>;
 }
 
-export const DEFAULT_STATUS = 'default';
 export const DEFAULT_ACTOR = 'human';
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 500;

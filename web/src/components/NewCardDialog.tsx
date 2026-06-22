@@ -21,8 +21,9 @@ export function NewCardDialog({
 }) {
   const enabledTypes = config.cardTypes.filter((item) => item.enabled !== false);
   const enabledStatuses = config.statuses.filter((item) => item.enabled !== false);
+  const defaultStatus = config.defaults?.status ?? enabledStatuses[0]?.id ?? 'default';
   const [type, setType] = useState(enabledTypes[0]?.id ?? 'task');
-  const [status, setStatus] = useState('default');
+  const [status, setStatus] = useState(defaultStatus);
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
@@ -33,7 +34,7 @@ export function NewCardDialog({
   useEffect(() => {
     if (open && cardType) {
       setType(cardType.id);
-      setStatus('default');
+      setStatus(defaultStatus);
       const defaults: Record<string, unknown> = {};
       for (const field of fieldsToRender) {
         if (field?.defaultValue !== undefined) defaults[field.id] = field.defaultValue;

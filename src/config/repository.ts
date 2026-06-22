@@ -6,6 +6,7 @@ import type {
   HookConfig,
   StatusConfig,
   TransitionConfig,
+  WorkspaceDefaults,
 } from './types.ts';
 
 function bool(value: unknown, fallback = false) {
@@ -137,6 +138,11 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
       system: item.system ? 1 : 0,
     });
   }
+
+  db.prepare(
+    `INSERT INTO settings (key, value) VALUES ('defaults', @value)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+  ).run({ value: JSON.stringify(config.defaults ?? {}) });
 }
 
 export function readConfig(db: DatabaseSync): AppConfig {
@@ -207,5 +213,8 @@ export function readConfig(db: DatabaseSync): AppConfig {
       system: bool(row.system),
     }));
 
-  return { cardTypes, statuses, transitions, hookActionModels, hooks };
+  const defaultsRow = db.prepare("SELECT value FROM settings WHERE key = 'defaults'").get() as { value: string } | undefined;
+  const defaults = defaultsRow ? json<WorkspaceDefaults>(defaultsRow.value, {}) : {};
+
+  return { cardTypes, statuses, transitions, hookActionModels, hooks, defaults };
 }

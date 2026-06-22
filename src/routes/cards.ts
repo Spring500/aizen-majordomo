@@ -16,7 +16,6 @@ import {
   validateActionFields,
 } from '../cards/repository.ts';
 import { fieldFilterEntries, normalizeCreateBody, normalizeUpdateBody, parsePagination } from '../cards/validation.ts';
-import { DEFAULT_STATUS } from '../cards/types.ts';
 import { badRequest, notFound } from '../http/errors.ts';
 
 export const cards = new Hono<AppEnv>();
@@ -109,7 +108,10 @@ cards.post('/', async (c) => {
   if (!cardType) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'type', reason: '未知卡片类型' });
   }
-  const status = parsed.value.status ?? DEFAULT_STATUS;
+  const status = parsed.value.status ?? config.defaults?.status ?? config.statuses.find((s) => s.enabled !== false)?.id;
+  if (!status) {
+    return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未配置可用状态，无法建卡' });
+  }
   if (!enabledStatusExists(config, status)) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未知状态' });
   }

@@ -100,6 +100,8 @@ export interface AppConfig {
   hookActionModels: unknown[];
   /** hook 配置；阶段 4 前端不解释其结构。 */
   hooks: unknown[];
+  /** 运行时默认值。 */
+  defaults?: { status?: string };
 }
 
 /** 卡片类型 id。 */
