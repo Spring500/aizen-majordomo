@@ -73,6 +73,27 @@ describe('POST /cards/:id/transition', () => {
     expect(body.error.details.field, '冲突错误详情应指向 status，便于调用方理解当前状态不允许').toBe('status');
   });
 
+  it('目标状态与当前状态相同时返回 409，禁止自环', async () => {
+    const { app } = createTestApp();
+    const card = await createTask(app);
+
+    await app.request(`/cards/${card.id}/transition`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+      body: JSON.stringify({ transitionId: 'complete' }),
+    });
+
+    const res = await app.request(`/cards/${card.id}/transition`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+      body: JSON.stringify({ transitionId: 'complete' }),
+    });
+    const body = await res.json();
+
+    expect(res.status, '已处于 done 状态再执行 complete 应返回 409，禁止自环').toBe(409);
+    expect(body.error.details.field, '自环冲突错误详情应指向 status').toBe('status');
+  });
+
   it('全局 transition 能从任意状态执行', async () => {
     const { app } = createTestApp();
     const card = await createTask(app);

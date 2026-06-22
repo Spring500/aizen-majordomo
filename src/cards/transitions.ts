@@ -128,6 +128,17 @@ export function runCardTransition(
     };
   }
 
+  if (transition.toStatus === existing.status) {
+    return {
+      ok: false,
+      status: 409,
+      error: {
+        field: 'status',
+        reason: `当前状态已是 ${existing.status}，无需执行 ${transition.id}`,
+      },
+    };
+  }
+
   if (!enabledStatusExists(config, transition.toStatus)) {
     return { ok: false, status: 400, error: { field: 'toStatus', reason: `未知目标状态 ${transition.toStatus}` } };
   }

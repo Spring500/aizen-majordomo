@@ -14,7 +14,8 @@ function availableTransitions(config: AppConfig, card: Card | null) {
     (transition) =>
       transition.enabled !== false &&
       (transition.cardType === null || transition.cardType === undefined || transition.cardType === card.type) &&
-      (transition.fromStatus === null || transition.fromStatus === undefined || transition.fromStatus === card.status),
+      (transition.fromStatus === null || transition.fromStatus === undefined || transition.fromStatus === card.status) &&
+      transition.toStatus !== card.status,
   );
 }
 
