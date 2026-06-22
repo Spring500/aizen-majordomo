@@ -98,7 +98,7 @@ export function CardDrawer({
   const cardType = config.cardTypes.find((item) => item.id === card?.type);
   const fieldsToRender = useMemo(() => actionFields(cardType, 'update'), [cardType]);
   const transitions = useMemo(() => availableTransitions(config, card), [config, card]);
-  const existingReply = typeof card?.fields.reply === 'string' ? card.fields.reply : card?.reply;
+  const existingReply = typeof card?.fields.reply === 'string' ? card.fields.reply : undefined;
   const statusLabel = config.statuses.find((status) => status.id === card?.status)?.name ?? card?.status ?? '';
 
   useEffect(() => {
@@ -146,7 +146,7 @@ export function CardDrawer({
           </button>
           <span className="meta">created by {card.created_by}</span>
         </div>
-        <h2>{card.title}</h2>
+        <h2>{typeof card.fields.title === 'string' ? card.fields.title : card.id}</h2>
       </div>
       <div className="drawer-body">
         <div className="form-grid">

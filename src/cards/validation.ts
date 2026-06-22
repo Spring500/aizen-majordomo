@@ -1,4 +1,4 @@
-import { DEFAULT_LIMIT, FLAT_FIELD_IDS, MAX_LIMIT } from './types.ts';
+import { DEFAULT_LIMIT, MAX_LIMIT } from './types.ts';
 
 export interface NormalizedCreateBody {
   type?: string;
@@ -40,19 +40,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-function collectFields(body: Record<string, unknown>, fieldsValue: unknown) {
+function collectFields(fieldsValue: unknown) {
   if (fieldsValue !== undefined && !isObject(fieldsValue)) {
     return { ok: false as const, error: { field: 'fields', reason: 'fields 必须是对象' } };
   }
 
   const fields = fieldsValue ? { ...(fieldsValue as Record<string, unknown>) } : {};
-  for (const fieldId of FLAT_FIELD_IDS) {
-    if (!(fieldId in body)) continue;
-    if (fieldId in fields) {
-      return { ok: false as const, error: { field: fieldId, reason: `${fieldId} 不能同时出现在 fields 和扁平字段中` } };
-    }
-    fields[fieldId] = body[fieldId];
-  }
   return { ok: true as const, fields };
 }
 
@@ -60,7 +53,7 @@ export function normalizeCreateBody(input: unknown) {
   if (!isObject(input)) {
     return { ok: false as const, error: { field: 'body', reason: '请求体必须是对象' } };
   }
-  const collected = collectFields(input, input.fields);
+  const collected = collectFields(input.fields);
   if (!collected.ok) return collected;
   return {
     ok: true as const,
@@ -76,7 +69,7 @@ export function normalizeUpdateBody(input: unknown) {
   if (!isObject(input)) {
     return { ok: false as const, error: { field: 'body', reason: '请求体必须是对象' } };
   }
-  const collected = collectFields(input, input.fields);
+  const collected = collectFields(input.fields);
   if (!collected.ok) return collected;
   return {
     ok: true as const,

@@ -81,9 +81,9 @@ node scripts/majordomo.mjs wait-reply --card-id ${id}`);
 }
 
 function extractReply(card) {
-  const reply = card?.fields?.reply ?? card?.reply;
+  const reply = card?.fields?.reply;
   if (typeof reply === 'string' && reply.trim().length > 0) {
-    return { reply, repliedBy: card?.fields?.replied_by ?? card?.replied_by ?? 'human' };
+    return { reply, repliedBy: card?.fields?.replied_by ?? 'human' };
   }
   return null;
 }

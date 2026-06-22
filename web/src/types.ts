@@ -113,26 +113,10 @@ export interface Card {
   type: CardType;
   /** 配置化字段值集合。 */
   fields: Record<string, unknown>;
-  /** 兼容常用标题字段的快捷读取值。 */
-  title: string | null;
-  /** 兼容常用正文字段的快捷读取值。 */
-  body: string | null;
-  /** decision 选项快捷读取值。 */
-  options: string[] | null;
   /** 当前状态 id；只能通过 transition 改变。 */
   status: string;
-  /** lane 字段快捷读取值。 */
-  lane: string | null;
-  /** priority 字段快捷读取值。 */
-  priority: number | null;
   /** 创建者标识。 */
   created_by: string;
-  /** assignee 字段快捷读取值。 */
-  assignee: string | null;
-  /** decision 正式回复快捷读取值。 */
-  reply: string | null;
-  /** decision 回复人快捷读取值。 */
-  replied_by: string | null;
   /** 创建时间戳，单位毫秒。 */
   created_at: number;
   /** 更新时间戳，单位毫秒。 */

@@ -17,13 +17,15 @@ function configuredFields(card: Card, config: AppConfig) {
 }
 
 function cardPrimaryText(card: Card, fields: FieldDefinition[]) {
-  if (card.title?.trim()) return card.title;
+  const title = card.fields.title;
+  if (typeof title === 'string' && title.trim()) return title;
   const textField = fields.find((field) => field.kind === 'text' && stringifyFieldValue(field, card.fields[field.id]));
   return textField ? stringifyFieldValue(textField, card.fields[textField.id]) : card.id;
 }
 
 function cardSecondaryText(card: Card, fields: FieldDefinition[], primary: string) {
-  if (card.body?.trim()) return card.body;
+  const body = card.fields.body;
+  if (typeof body === 'string' && body.trim()) return body;
   for (const field of fields) {
     const value = stringifyFieldValue(field, card.fields[field.id]);
     if (value && value !== primary) return value;
@@ -72,8 +74,10 @@ export function CardList({
               {secondary && <small>{secondary}</small>}
             </span>
             <span className={`status-pill ${card.status}`}>{status?.name ?? card.status}</span>
-            {card.priority !== null && <span className="priority">P{card.priority}</span>}
-            {card.assignee && <span className="assignee">{card.assignee}</span>}
+            {typeof card.fields.priority === 'number' && <span className="priority">P{card.fields.priority}</span>}
+            {typeof card.fields.assignee === 'string' && card.fields.assignee && (
+              <span className="assignee">{card.fields.assignee}</span>
+            )}
           </button>
         );
       })}

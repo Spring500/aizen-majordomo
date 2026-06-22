@@ -26,14 +26,6 @@ const card: Card = {
   type: 'review',
   status: 'triage',
   fields: { case_subject: '第三方数据导出核验', audit_domain: 'privacy' },
-  title: null,
-  body: null,
-  options: null,
-  lane: null,
-  priority: null,
-  assignee: null,
-  reply: null,
-  replied_by: null,
   created_by: 'scenario',
   created_at: 1,
   updated_at: 1,
@@ -76,7 +68,6 @@ describe('配置化卡片列表展示', () => {
       type: 'decision',
       status: 'waiting',
       fields: { title: '等待人类拍板' },
-      title: '等待人类拍板',
     };
 
     const html = renderToStaticMarkup(
