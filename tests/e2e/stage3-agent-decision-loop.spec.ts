@@ -2,17 +2,23 @@ import { expect, test } from '@playwright/test';
 
 async function createWaitingDecision(page: import('@playwright/test').Page, title: string) {
   return page.evaluate(async (cardTitle) => {
-    const res = await fetch('/cards', {
+    const createRes = await fetch('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
       body: JSON.stringify({
         type: 'decision',
-        status: 'waiting',
         fields: { title: cardTitle, options: ['采用 A', '采用 B'] },
       }),
     });
-    if (!res.ok) throw new Error(`创建等待回复 decision 失败: ${res.status}`);
-    return ((await res.json()) as { card: { id: string } }).card.id;
+    if (!createRes.ok) throw new Error(`创建 decision 失败: ${createRes.status}`);
+    const card = ((await createRes.json()) as { card: { id: string } }).card;
+    const transitionRes = await fetch(`/cards/${card.id}/transition`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ transitionId: 'request_reply' }),
+    });
+    if (!transitionRes.ok) throw new Error(`流转到 waiting 失败: ${transitionRes.status}`);
+    return card.id;
   }, title);
 }
 
@@ -22,7 +28,7 @@ test('阶段 3 宽屏可筛出等待回复 decision 并提交正式回复', asyn
   await page.reload();
 
   const filters = page.getByRole('complementary', { name: '筛选' });
-  await filters.getByRole('button', { name: '等待回复快捷筛选' }).click();
+  await filters.getByRole('button', { name: '等待回复', exact: true }).click();
   await page.getByRole('button', { name: /阶段三宽屏决策/ }).click();
 
   const drawer = page.getByRole('complementary', { name: '卡片详情' });
@@ -43,7 +49,7 @@ test('阶段 3 窄屏可通过筛选抽屉提交正式回复', async ({ page }) 
 
   await page.getByRole('button', { name: '筛选', exact: true }).click();
   const filters = page.getByRole('complementary', { name: '筛选' });
-  await filters.getByRole('button', { name: '等待回复快捷筛选' }).click();
+  await filters.getByRole('button', { name: '等待回复', exact: true }).click();
   await page.getByRole('button', { name: /阶段三窄屏决策/ }).click();
 
   const drawer = page.getByRole('complementary', { name: '卡片详情' });

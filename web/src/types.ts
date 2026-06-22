@@ -66,6 +66,8 @@ export interface StatusConfig {
   name: string;
   /** 为 false 时前端不应作为可选或目标状态展示。 */
   enabled?: boolean;
+  /** 为 false 时该状态不能作为新建卡片的初始状态。 */
+  allowAsInitial?: boolean;
 }
 
 /** 前端渲染和提交状态流转时使用的 transition 配置。 */

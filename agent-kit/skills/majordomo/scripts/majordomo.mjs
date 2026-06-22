@@ -66,12 +66,17 @@ async function ask(args) {
     ...(input.body !== undefined ? { body: input.body } : {}),
     ...(input.options !== undefined ? { options: input.options } : {}),
   };
-  const body = await requestJson(`${baseUrl(args)}/cards`, {
+  const createBody = await requestJson(`${baseUrl(args)}/cards`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-    body: JSON.stringify({ type: 'decision', status: 'waiting', fields }),
+    body: JSON.stringify({ type: 'decision', fields }),
   });
-  const id = body.card.id;
+  const id = createBody.card.id;
+  await requestJson(`${baseUrl(args)}/cards/${id}/transition`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+    body: JSON.stringify({ transitionId: 'request_reply' }),
+  });
   console.log(`已创建等待人类回复的 decision。
 
 本次询问的 card id 是：${id}

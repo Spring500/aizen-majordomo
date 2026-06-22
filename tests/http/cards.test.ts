@@ -78,6 +78,21 @@ describe('阶段 1 卡片 API', () => {
     );
   });
 
+  it('POST /cards 指定 allowAsInitial=false 的状态时返回 400', async () => {
+    const { app } = createTestApp();
+
+    const res = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', status: 'waiting', fields: { title: '不应允许' } }),
+    });
+
+    expect(
+      res.status,
+      'waiting 状态配置了 allowAsInitial=false，建卡应返回 400。若失败：检查路由层是否校验 allowAsInitial',
+    ).toBe(400);
+  });
+
   it('POST /cards 创建 decision 时保存 options，读取时 options 为数组', async () => {
     const { app } = createTestApp();
 

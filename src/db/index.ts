@@ -24,6 +24,7 @@ export function createDb(path: string = DEFAULT_DB_PATH): DatabaseSync {
 export function migrate(db: DatabaseSync): void {
   migrateCardsTable(db);
   migrateChangesTable(db);
+  migrateStatusesTable(db);
   const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
   initializeConfig(db);
@@ -137,5 +138,13 @@ function migrateChangesTable(db: DatabaseSync): void {
       payload_json: JSON.stringify({ oldValue: row.old_value ?? null, newValue: row.new_value ?? null }),
       at: row.at,
     } as Record<string, SQLInputValue>);
+  }
+}
+
+function migrateStatusesTable(db: DatabaseSync): void {
+  if (!tableExists(db, 'statuses')) return;
+  const columns = columnNames(db, 'statuses');
+  if (!columns.includes('allow_as_initial')) {
+    db.exec('ALTER TABLE statuses ADD COLUMN allow_as_initial INTEGER NOT NULL DEFAULT 1;');
   }
 }

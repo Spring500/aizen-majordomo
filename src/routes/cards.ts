@@ -115,6 +115,10 @@ cards.post('/', async (c) => {
   if (!enabledStatusExists(config, status)) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未知状态' });
   }
+  const statusConfig = config.statuses.find((item) => item.id === status);
+  if (statusConfig && statusConfig.allowAsInitial === false) {
+    return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '该状态不允许作为新建卡片的初始状态' });
+  }
   const actionResult = validateActionFields(cardType, 'create', parsed.value.fields);
   if (!actionResult.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...actionResult.error });
 

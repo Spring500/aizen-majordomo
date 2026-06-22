@@ -20,8 +20,8 @@ export function NewCardDialog({
   onCreate: (input: { type: string; status?: string; fields: Record<string, unknown> }) => Promise<void>;
 }) {
   const enabledTypes = config.cardTypes.filter((item) => item.enabled !== false);
-  const enabledStatuses = config.statuses.filter((item) => item.enabled !== false);
-  const defaultStatus = config.defaults?.status ?? enabledStatuses[0]?.id ?? 'default';
+  const initialStatuses = config.statuses.filter((item) => item.enabled !== false && item.allowAsInitial !== false);
+  const defaultStatus = config.defaults?.status ?? initialStatuses[0]?.id ?? 'default';
   const [type, setType] = useState(enabledTypes[0]?.id ?? 'task');
   const [status, setStatus] = useState(defaultStatus);
   const [fields, setFields] = useState<Record<string, unknown>>({});
@@ -84,7 +84,7 @@ export function NewCardDialog({
           <label className="field">
             <span>Status</span>
             <select aria-label="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
-              {enabledStatuses.map((item) => (
+              {initialStatuses.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
                 </option>

@@ -44,9 +44,14 @@ describe('majordomo agent CLI', () => {
     const createRes = await fetch(`${server.url}/cards`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '需要回复' } }),
+      body: JSON.stringify({ type: 'decision', fields: { title: '需要回复' } }),
     });
     const created = (await createRes.json()) as { card: { id: string } };
+    await fetch(`${server.url}/cards/${created.card.id}/transition`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ transitionId: 'request_reply' }),
+    });
     await fetch(`${server.url}/cards/${created.card.id}/actions/reply`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'human' },

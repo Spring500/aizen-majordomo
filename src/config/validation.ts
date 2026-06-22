@@ -55,6 +55,7 @@ const configSchema = z.object({
       position: z.number(),
       color: z.string().optional(),
       enabled: z.boolean().optional(),
+      allowAsInitial: z.boolean().optional(),
       system: z.boolean().optional(),
     }),
   ),

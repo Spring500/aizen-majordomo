@@ -45,13 +45,16 @@
   ],
   "statuses": [
     { "id": "triage", "name": "分拣", "category": "todo", "position": 0, "color": "#64748b", "enabled": true, "system": true },
-    { "id": "approved", "name": "已批准", "category": "done", "position": 1, "color": "#059669", "enabled": true, "system": true },
-    { "id": "rejected", "name": "已拒绝", "category": "done", "position": 2, "color": "#dc2626", "enabled": true, "system": true }
+    { "id": "approved", "name": "已批准", "category": "done", "position": 1, "color": "#059669", "enabled": true, "system": true, "allowAsInitial": false },
+    { "id": "rejected", "name": "已拒绝", "category": "done", "position": 2, "color": "#dc2626", "enabled": true, "system": true, "allowAsInitial": false }
   ],
   "transitions": [
     { "id": "approve", "name": "批准", "cardType": "review", "fromStatus": "triage", "toStatus": "approved", "writableFields": [], "system": true, "enabled": true },
     { "id": "reject", "name": "拒绝", "cardType": "review", "fromStatus": "triage", "toStatus": "rejected", "writableFields": [], "system": true, "enabled": true }
   ],
   "hookActionModels": [],
-  "hooks": []
+  "hooks": [],
+  "defaults": {
+    "status": "triage"
+  }
 }

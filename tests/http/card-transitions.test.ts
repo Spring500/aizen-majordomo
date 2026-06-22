@@ -20,12 +20,18 @@ async function createDefaultDecision(app: ReturnType<typeof createTestApp>['app'
 }
 
 async function createWaitingDecision(app: ReturnType<typeof createTestApp>['app']) {
-  const res = await app.request('/cards', {
+  const createRes = await app.request('/cards', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-    body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '需要回复' } }),
+    body: JSON.stringify({ type: 'decision', fields: { title: '需要回复' } }),
   });
-  return (await res.json()).card;
+  const card = (await createRes.json()).card;
+  await app.request(`/cards/${card.id}/transition`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+    body: JSON.stringify({ transitionId: 'request_reply' }),
+  });
+  return (await (await app.request(`/cards/${card.id}`)).json()).card;
 }
 
 describe('POST /cards/:id/transition', () => {

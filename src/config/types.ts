@@ -133,6 +133,8 @@ export interface StatusConfig {
   color?: string;
   /** 为 false 时该状态不能作为新流转目标或新建初始状态。 */
   enabled?: boolean;
+  /** 为 false 时该状态不能作为新建卡片的初始状态；默认 true。 */
+  allowAsInitial?: boolean;
   /** 标记是否为内置样例状态，阶段 7 会用它区分用户管理配置。 */
   system?: boolean;
 }

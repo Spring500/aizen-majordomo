@@ -48,14 +48,15 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
 
   for (const item of config.statuses) {
     db.prepare(
-      `INSERT INTO statuses (id, name, category, position, color, enabled, system)
-       VALUES (@id, @name, @category, @position, @color, @enabled, @system)
+      `INSERT INTO statuses (id, name, category, position, color, enabled, allow_as_initial, system)
+       VALUES (@id, @name, @category, @position, @color, @enabled, @allow_as_initial, @system)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          category = excluded.category,
          position = excluded.position,
          color = excluded.color,
          enabled = excluded.enabled,
+         allow_as_initial = excluded.allow_as_initial,
          system = excluded.system`,
     ).run({
       id: item.id,
@@ -64,6 +65,7 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
       position: item.position,
       color: item.color ?? null,
       enabled: item.enabled === false ? 0 : 1,
+      allow_as_initial: item.allowAsInitial === false ? 0 : 1,
       system: item.system ? 1 : 0,
     });
   }
@@ -170,6 +172,7 @@ export function readConfig(db: DatabaseSync): AppConfig {
       position: row.position,
       color: row.color ?? undefined,
       enabled: bool(row.enabled, true),
+      allowAsInitial: bool(row.allow_as_initial, true),
       system: bool(row.system),
     }));
 
