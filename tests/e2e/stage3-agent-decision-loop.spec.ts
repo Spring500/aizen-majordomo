@@ -33,10 +33,6 @@ test('阶段 3 宽屏可筛出等待回复 decision 并提交正式回复', asyn
     drawer.getByText('采用方案 A'),
     '提交正式回复后详情应显示回复内容。若失败：检查 submit_reply transition 和 CardDrawer 刷新',
   ).toBeVisible();
-  await expect(
-    drawer.getByText('回复人：human'),
-    '提交正式回复后详情应显示回复人。若失败：检查 replied_by 写入和展示',
-  ).toBeVisible();
 });
 
 test('阶段 3 窄屏可通过筛选抽屉提交正式回复', async ({ page }) => {

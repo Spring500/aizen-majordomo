@@ -116,14 +116,13 @@ describe('POST /cards/:id/transition', () => {
     const res = await app.request(`/cards/${card.id}/transition`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
-      body: JSON.stringify({ transitionId: 'submit_reply', fields: { reply: '采用 A', replied_by: 'human' } }),
+      body: JSON.stringify({ transitionId: 'submit_reply', fields: { reply: '采用 A' } }),
     });
     const body = await res.json();
 
     expect(res.status, 'waiting decision 执行 submit_reply 并写入 reply 应成功').toBe(200);
     expect(body.card.status, 'submit_reply 应把 decision 状态改为 resolved').toBe('resolved');
     expect(body.card.fields.reply, 'submit_reply 应持久化 reply 字段').toBe('采用 A');
-    expect(body.card.fields.replied_by, 'submit_reply 应持久化 replied_by 字段').toBe('human');
   });
 
   it('transition 请求携带未允许字段时返回 400 且不写入卡片', async () => {

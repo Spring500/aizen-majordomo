@@ -11,11 +11,10 @@ const config: AppConfig = {
       fields: [
         { id: 'title', label: '标题', kind: 'text', required: true },
         { id: 'reply', label: '正式回复', kind: 'longText' },
-        { id: 'replied_by', label: '回复人', kind: 'actor' },
       ],
       actions: [
         { id: 'update', label: '编辑', kind: 'update', writableFields: ['title'] },
-        { id: 'reply', label: '正式回复', kind: 'reply', writableFields: ['reply', 'replied_by'], requiredFields: ['reply'] },
+        { id: 'reply', label: '正式回复', kind: 'reply', writableFields: ['reply'], requiredFields: ['reply'] },
       ],
     },
   ],
@@ -27,7 +26,7 @@ const config: AppConfig = {
       cardType: 'decision',
       fromStatus: 'waiting',
       toStatus: 'resolved',
-      writableFields: ['reply', 'replied_by'],
+      writableFields: ['reply'],
       requiredFields: ['reply'],
     },
   ],

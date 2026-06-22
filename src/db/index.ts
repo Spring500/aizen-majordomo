@@ -77,6 +77,7 @@ function migrateCardsTable(db: DatabaseSync): void {
      VALUES (@card_id, @field_id, @value_json, @updated_at)`,
   );
 
+  // stage2 老库可能含 replied_by 字段值，迁移时一并搬运；新字段不在此列。
   const fieldIds = ['title', 'body', 'options', 'lane', 'priority', 'assignee', 'reply', 'replied_by'];
   for (const row of oldRows) {
     insertCard.run({

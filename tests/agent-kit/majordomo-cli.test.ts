@@ -50,7 +50,7 @@ describe('majordomo agent CLI', () => {
     await fetch(`${server.url}/cards/${created.card.id}/actions/reply`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
-      body: JSON.stringify({ fields: { reply: '选择 A', replied_by: 'human' } }),
+      body: JSON.stringify({ fields: { reply: '选择 A' } }),
     });
 
     let result: { stdout: string };

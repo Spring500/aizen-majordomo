@@ -43,11 +43,6 @@ function TransitionAction({
 
   async function submit() {
     const nextFields = { ...fields };
-    for (const field of writableFields) {
-      if (field?.id === 'replied_by' && nextFields.replied_by === undefined) {
-        nextFields.replied_by = 'human';
-      }
-    }
     setRunning(true);
     try {
       await onRun(nextFields);
@@ -104,7 +99,6 @@ export function CardDrawer({
   const fieldsToRender = useMemo(() => actionFields(cardType, 'update'), [cardType]);
   const transitions = useMemo(() => availableTransitions(config, card), [config, card]);
   const existingReply = typeof card?.fields.reply === 'string' ? card.fields.reply : card?.reply;
-  const repliedBy = card?.fields.replied_by ?? card?.replied_by ?? 'human';
   const statusLabel = config.statuses.find((status) => status.id === card?.status)?.name ?? card?.status ?? '';
 
   useEffect(() => {
@@ -175,7 +169,6 @@ export function CardDrawer({
             <section className="reply-panel" aria-label="正式回复">
               <h3>正式回复</h3>
               <div className="reply-content">
-                <span>回复人：{String(repliedBy)}</span>
                 <p>{existingReply}</p>
               </div>
             </section>

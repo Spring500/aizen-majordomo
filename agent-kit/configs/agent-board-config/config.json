@@ -72,8 +72,7 @@
           ]
         },
         { "id": "options", "label": "选项", "kind": "stringList", "system": true },
-        { "id": "reply", "label": "正式回复", "kind": "longText", "system": true },
-        { "id": "replied_by", "label": "回复人", "kind": "actor", "system": true }
+        { "id": "reply", "label": "正式回复", "kind": "longText", "system": true }
       ],
       "actions": [
         {
@@ -96,7 +95,7 @@
           "label": "正式回复",
           "kind": "reply",
           "system": true,
-          "writableFields": ["reply", "replied_by"],
+          "writableFields": ["reply"],
           "requiredFields": ["reply"]
         }
       ]
@@ -161,7 +160,7 @@
       "cardType": "decision",
       "fromStatus": "waiting",
       "toStatus": "resolved",
-      "writableFields": ["reply", "replied_by"],
+      "writableFields": ["reply"],
       "requiredFields": ["reply"],
       "system": true,
       "enabled": true

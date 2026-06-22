@@ -8,7 +8,7 @@
 
 1. `status` 只能通过 `POST /cards/:id/transition` 改变。
 2. 每次状态变化都必须匹配当前配置中的 transition。
-3. transition 可以在同一次请求中写入配置允许的字段，例如 `reply` 和 `replied_by`。
+3. transition 可以在同一次请求中写入配置允许的字段，例如 `reply`。
 4. transition 可以附带一条可选说明，并保存为评论。
 5. 状态变化会写入 `changes`，agent 能通过 `/changes?since=` 增量读取。
 6. 前端不提供直接编辑 status 的入口，而是展示当前可执行的流转按钮。
@@ -70,8 +70,7 @@ POST /cards/:id/transition
 {
   "transitionId": "submit_reply",
   "fields": {
-    "reply": "采用方案 A",
-    "replied_by": "human"
+    "reply": "采用方案 A"
   },
   "comment": "已确认，按 A 推进"
 }
@@ -86,8 +85,7 @@ POST /cards/:id/transition
     "type": "decision",
     "status": "resolved",
     "fields": {
-      "reply": "采用方案 A",
-      "replied_by": "human"
+      "reply": "采用方案 A"
     }
   },
   "change": {
@@ -100,8 +98,7 @@ POST /cards/:id/transition
       "fromStatus": "waiting",
       "toStatus": "resolved",
       "fields": {
-        "reply": "采用方案 A",
-        "replied_by": "human"
+        "reply": "采用方案 A"
       },
       "commentId": "comment-id"
     }
@@ -197,8 +194,7 @@ export function runCardTransition(
 {
   "transitionId": "submit_reply",
   "fields": {
-    "reply": "...",
-    "replied_by": "human"
+    "reply": "..."
   }
 }
 ```
