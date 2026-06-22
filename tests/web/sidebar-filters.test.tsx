@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+﻿import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { SidebarFilters } from '../../web/src/components/SidebarFilters.tsx';
-import type { AppConfig } from '../../web/src/types.ts';
+import type { WorkspaceConfig } from '../../web/src/types.ts';
 
-const reviewConfig: AppConfig = {
+const reviewConfig: WorkspaceConfig = {
   cardTypes: [
     {
       id: 'review',

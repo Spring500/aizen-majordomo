@@ -1,4 +1,4 @@
-/** 配置字段支持的存储和校验类型。 */
+﻿/** 配置字段支持的存储和校验类型。 */
 export type FieldKind =
   | 'text'
   | 'longText'
@@ -209,7 +209,7 @@ export interface HookConfig {
 }
 
 /** 当前运行时的完整看板配置快照，由 SQLite 配置表读取生成。 */
-export interface AppConfig {
+export interface WorkspaceConfig {
   /** 可用卡片类型配置。 */
   cardTypes: CardTypeConfig[];
   /** 可用状态配置。 */

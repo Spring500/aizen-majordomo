@@ -1,6 +1,6 @@
-import type { DatabaseSync } from 'node:sqlite';
+﻿import type { DatabaseSync } from 'node:sqlite';
 import type {
-  AppConfig,
+  WorkspaceConfig,
   CardTypeConfig,
   HookActionModelConfig,
   HookConfig,
@@ -19,7 +19,7 @@ function json<T>(value: string | null | undefined, fallback: T): T {
   return JSON.parse(value) as T;
 }
 
-export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
+export function upsertConfig(db: DatabaseSync, config: WorkspaceConfig): void {
   const tx = db.prepare('SELECT 1');
   tx.get();
   for (const item of config.cardTypes) {
@@ -147,7 +147,7 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
   ).run({ value: JSON.stringify(config.defaults ?? {}) });
 }
 
-export function readConfig(db: DatabaseSync): AppConfig {
+export function readConfig(db: DatabaseSync): WorkspaceConfig {
   const cardTypes = db
     .prepare('SELECT * FROM card_types ORDER BY position ASC, id ASC')
     .all()

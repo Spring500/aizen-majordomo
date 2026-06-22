@@ -1,4 +1,4 @@
-import type { AppConfig, Card, FieldDefinition } from '../types.ts';
+﻿import type { WorkspaceConfig, Card, FieldDefinition } from '../types.ts';
 
 function stringifyFieldValue(field: FieldDefinition, value: unknown) {
   if (value === undefined || value === null || value === '') return '';
@@ -12,7 +12,7 @@ function stringifyFieldValue(field: FieldDefinition, value: unknown) {
   return String(value);
 }
 
-function configuredFields(card: Card, config: AppConfig) {
+function configuredFields(card: Card, config: WorkspaceConfig) {
   return config.cardTypes.find((item) => item.id === card.type)?.fields.filter((field) => !field.hidden) ?? [];
 }
 
@@ -46,7 +46,7 @@ export function CardList({
   onSelect,
 }: {
   cards: Card[];
-  config: AppConfig;
+  config: WorkspaceConfig;
   selectedId?: string;
   loading: boolean;
   onSelect: (card: Card) => void;

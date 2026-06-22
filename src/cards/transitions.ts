@@ -1,9 +1,9 @@
-import type { DatabaseSync } from 'node:sqlite';
+﻿import type { DatabaseSync } from 'node:sqlite';
 import { recordChange } from '../changes/repository.ts';
 import type { ChangeEvent } from '../changes/types.ts';
 import { createComment } from '../comments/repository.ts';
 import type { Comment } from '../comments/types.ts';
-import type { AppConfig, CardTypeConfig, TransitionConfig } from '../config/types.ts';
+import type { WorkspaceConfig, CardTypeConfig, TransitionConfig } from '../config/types.ts';
 import {
   enabledStatusExists,
   findCardById,
@@ -46,7 +46,7 @@ export type RunCardTransitionFailure =
 /** transition 执行结果；调用方按 status 映射统一错误体。 */
 export type RunCardTransitionResult = RunCardTransitionSuccess | RunCardTransitionFailure;
 
-function findTransition(config: AppConfig, cardType: string, transitionId: string): TransitionConfig | null {
+function findTransition(config: WorkspaceConfig, cardType: string, transitionId: string): TransitionConfig | null {
   return (
     config.transitions.find(
       (item) =>
@@ -103,7 +103,7 @@ function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
  */
 export function runCardTransition(
   db: DatabaseSync,
-  config: AppConfig,
+  config: WorkspaceConfig,
   input: RunCardTransitionInput,
 ): RunCardTransitionResult {
   const existing = findCardById(db, input.cardId);

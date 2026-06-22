@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AppConfig, Card, CardTypeConfig, TransitionConfig } from '../types.ts';
+﻿import { useEffect, useMemo, useState } from 'react';
+import type { WorkspaceConfig, Card, CardTypeConfig, TransitionConfig } from '../types.ts';
 import { DynamicFieldInput } from './DynamicFields.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
 
@@ -8,7 +8,7 @@ function actionFields(cardType: CardTypeConfig | undefined, actionId: string) {
   return action?.writableFields.map((fieldId) => cardType?.fields.find((field) => field.id === fieldId)).filter(Boolean) ?? [];
 }
 
-function availableTransitions(config: AppConfig, card: Card | null) {
+function availableTransitions(config: WorkspaceConfig, card: Card | null) {
   if (!card) return [];
   return config.transitions.filter(
     (transition) =>
@@ -86,7 +86,7 @@ export function CardDrawer({
   onTransition,
 }: {
   card: Card | null;
-  config: AppConfig;
+  config: WorkspaceConfig;
   open: boolean;
   onClose: () => void;
   onSave: (input: { fields: Record<string, unknown> }) => Promise<void>;

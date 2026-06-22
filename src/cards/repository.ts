@@ -1,6 +1,6 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import type { AppConfig, CardTypeConfig, FieldDefinition } from '../config/types.ts';
+import type { WorkspaceConfig, CardTypeConfig, FieldDefinition } from '../config/types.ts';
 import { DEFAULT_ACTOR, type Card, type CardCoreRow } from './types.ts';
 import { serializeCard } from './serialize.ts';
 
@@ -37,7 +37,7 @@ function parseValue(value: string): unknown {
   return JSON.parse(value);
 }
 
-export function findCardType(config: AppConfig, type: string): CardTypeConfig | null {
+export function findCardType(config: WorkspaceConfig, type: string): CardTypeConfig | null {
   return config.cardTypes.find((item) => item.id === type && item.enabled !== false) ?? null;
 }
 
@@ -50,7 +50,7 @@ export function findAction(cardType: CardTypeConfig, actionId: string) {
   return action ?? null;
 }
 
-export function enabledStatusExists(config: AppConfig, status: string): boolean {
+export function enabledStatusExists(config: WorkspaceConfig, status: string): boolean {
   return config.statuses.some((item) => item.id === status && item.enabled !== false);
 }
 

@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+﻿import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { CardDrawer } from '../../web/src/components/CardDrawer.tsx';
-import type { AppConfig, Card } from '../../web/src/types.ts';
+import type { WorkspaceConfig, Card } from '../../web/src/types.ts';
 
-const config: AppConfig = {
+const config: WorkspaceConfig = {
   cardTypes: [
     {
       id: 'decision',

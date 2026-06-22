@@ -1,11 +1,11 @@
-import type { DatabaseSync } from 'node:sqlite';
-import type { AppConfig } from '../config/types.ts';
+﻿import type { DatabaseSync } from 'node:sqlite';
+import type { WorkspaceConfig } from '../config/types.ts';
 import { recordChange } from '../changes/repository.ts';
 import { findCardById, findCardType, updateCard, validateActionFields } from './repository.ts';
 
 export function runCardAction(
   db: DatabaseSync,
-  config: AppConfig,
+  config: WorkspaceConfig,
   input: { cardId: string; actionId: string; fields: Record<string, unknown>; actor: string },
 ) {
   const existing = findCardById(db, input.cardId);

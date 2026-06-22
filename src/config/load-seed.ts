@@ -1,11 +1,11 @@
-import { readFileSync } from 'node:fs';
+﻿import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { AppConfig } from './types.ts';
+import type { WorkspaceConfig } from './types.ts';
 import { validateConfig } from './validation.ts';
 
 export const DEFAULT_CONFIG_SEED_PATH = 'scenarios/default-sample/config.json';
 
-export function loadSeedConfig(path = process.env.CONFIG_SEED_PATH ?? DEFAULT_CONFIG_SEED_PATH): AppConfig {
+export function loadSeedConfig(path = process.env.CONFIG_SEED_PATH ?? DEFAULT_CONFIG_SEED_PATH): WorkspaceConfig {
   const resolved = resolve(process.cwd(), path);
   let input: unknown;
   try {
@@ -19,5 +19,5 @@ export function loadSeedConfig(path = process.env.CONFIG_SEED_PATH ?? DEFAULT_CO
     throw new Error(`配置种子无效：${resolved}: ${result.errors.join('; ')}`);
   }
 
-  return input as AppConfig;
+  return input as WorkspaceConfig;
 }

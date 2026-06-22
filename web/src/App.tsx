@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getConfig } from './api/config.ts';
 import { createCard, getCard, listCards, runCardTransition, updateCard } from './api/cards.ts';
 import { CardDrawer } from './components/CardDrawer.tsx';
@@ -8,7 +8,7 @@ import { ErrorMessage } from './components/ErrorMessage.tsx';
 import { NewCardDialog } from './components/NewCardDialog.tsx';
 import { SidebarFilters } from './components/SidebarFilters.tsx';
 import { Topbar } from './components/Topbar.tsx';
-import type { AppConfig, Card, CardFilters } from './types.ts';
+import type { WorkspaceConfig, Card, CardFilters } from './types.ts';
 
 /**
  * 前端工作台根组件。
@@ -16,7 +16,7 @@ import type { AppConfig, Card, CardFilters } from './types.ts';
  * 负责读取配置、维护列表筛选和详情选择，并把普通保存与状态流转分发到不同 API。
  */
 export function App() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [config, setConfig] = useState<WorkspaceConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<Card | null>(null);
   const [filters, setFilters] = useState<CardFilters>({ type: '', limit: 50, offset: 0 });

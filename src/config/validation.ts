@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import type { AppConfig, ConfigValidationResult } from './types.ts';
+﻿import { z } from 'zod';
+import type { WorkspaceConfig, ConfigValidationResult } from './types.ts';
 
 const fieldSchema = z.object({
   id: z.string().min(1),
@@ -114,7 +114,7 @@ export function validateConfig(input: unknown): ConfigValidationResult {
     return { ok: false, errors: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`) };
   }
 
-  const config = parsed.data as AppConfig;
+  const config = parsed.data as WorkspaceConfig;
   const errors: string[] = [];
   duplicateIds(config.cardTypes, 'cardTypes', errors);
   duplicateIds(config.statuses, 'statuses', errors);
@@ -186,7 +186,7 @@ export function validateConfig(input: unknown): ConfigValidationResult {
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
 
-export function assertValidConfig(config: AppConfig): void {
+export function assertValidConfig(config: WorkspaceConfig): void {
   const result = validateConfig(config);
   if (!result.ok) {
     throw new Error(`配置无效: ${result.errors.join('; ')}`);

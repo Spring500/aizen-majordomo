@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AppConfig, CardTypeConfig } from '../types.ts';
+﻿import { useEffect, useMemo, useState } from 'react';
+import type { WorkspaceConfig, CardTypeConfig } from '../types.ts';
 import { DynamicFieldInput } from './DynamicFields.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
 
@@ -15,7 +15,7 @@ export function NewCardDialog({
   onCreate,
 }: {
   open: boolean;
-  config: AppConfig;
+  config: WorkspaceConfig;
   onClose: () => void;
   onCreate: (input: { type: string; status?: string; fields: Record<string, unknown> }) => Promise<void>;
 }) {

@@ -1,4 +1,4 @@
-/** 前端支持的字段类型，来自后端配置模型。 */
+﻿/** 前端支持的字段类型，来自后端配置模型。 */
 export type FieldKind =
   | 'text'
   | 'longText'
@@ -91,7 +91,7 @@ export interface TransitionConfig {
 }
 
 /** 前端一次性读取到的运行时配置。 */
-export interface AppConfig {
+export interface WorkspaceConfig {
   /** 可用卡片类型配置。 */
   cardTypes: CardTypeConfig[];
   /** 可用状态配置。 */

@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+﻿import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { CardList } from '../../web/src/components/CardList.tsx';
-import type { AppConfig, Card } from '../../web/src/types.ts';
+import type { WorkspaceConfig, Card } from '../../web/src/types.ts';
 
-const config: AppConfig = {
+const config: WorkspaceConfig = {
   cardTypes: [
     {
       id: 'review',
@@ -48,7 +48,7 @@ describe('配置化卡片列表展示', () => {
   });
 
   it('等待回复的 decision 在列表中显示等待回复标记', () => {
-    const decisionConfig: AppConfig = {
+    const decisionConfig: WorkspaceConfig = {
       cardTypes: [
         {
           id: 'decision',

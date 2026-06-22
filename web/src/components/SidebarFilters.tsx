@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AppConfig, CardFilters, FieldDefinition, FieldKind } from '../types.ts';
+﻿import { useEffect, useMemo, useState } from 'react';
+import type { WorkspaceConfig, CardFilters, FieldDefinition, FieldKind } from '../types.ts';
 
 const filterableKinds = new Set<FieldKind>(['text', 'number', 'boolean', 'stringList', 'enum', 'actor']);
 
@@ -68,7 +68,7 @@ export function SidebarFilters({
 }: {
   filters: CardFilters;
   counts: Record<string, number>;
-  config: AppConfig;
+  config: WorkspaceConfig;
   open: boolean;
   onClose: () => void;
   onChange: (filters: CardFilters) => void;
