@@ -169,19 +169,6 @@ export function SidebarFilters({
         </div>
       </section>
       <section className="sidebar-section">
-        <h2>快捷</h2>
-        <div className="filter-list">
-          <button
-            aria-label="等待回复快捷筛选"
-            className={`filter-item ${filters.type === 'decision' && filters.status === 'waiting' ? 'active' : ''}`}
-            type="button"
-            onClick={() => updateFilters({ ...filters, type: 'decision', status: 'waiting' })}
-          >
-            <span>等待回复</span>
-          </button>
-        </div>
-      </section>
-      <section className="sidebar-section">
         <h2>字段条件</h2>
         <div className="condition-list">
           {conditionEntries.length === 0 && <p className="hint">未添加字段条件。</p>}
