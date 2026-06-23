@@ -116,10 +116,24 @@ export function CardDrawer({
   }
 
   async function submit() {
+    if (!card) return;
     try {
       setError('');
       setSaving(true);
-      await onSave({ fields });
+      const submitFields: Record<string, unknown> = {};
+      for (const field of fieldsToRender) {
+        if (!field) continue;
+        const newValue = fields[field.id];
+        const oldValue = card.fields[field.id];
+        if (JSON.stringify(newValue) !== JSON.stringify(oldValue)) {
+          submitFields[field.id] = newValue;
+        }
+      }
+      if (Object.keys(submitFields).length === 0) {
+        setError('无变更');
+        return;
+      }
+      await onSave({ fields: submitFields });
     } catch (err) {
       setError(err instanceof Error ? err.message : '保存失败');
     } finally {
