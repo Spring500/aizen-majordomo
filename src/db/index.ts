@@ -10,6 +10,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_DB_PATH =
   process.env.DB_PATH ?? join(process.cwd(), 'data', 'majordomo.db');
 
+export function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 // 建库:设 PRAGMA(WAL=并发读+原子写)并建表。传 ':memory:' 用于测试隔离。
 export function createDb(path: string = DEFAULT_DB_PATH): DatabaseSync {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });

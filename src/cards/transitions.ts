@@ -1,4 +1,5 @@
 ﻿import type { DatabaseSync } from 'node:sqlite';
+import { runInTransaction } from '../db/index.ts';
 import { recordChange } from '../changes/repository.ts';
 import type { ChangeEvent } from '../changes/types.ts';
 import { createComment } from '../comments/repository.ts';
@@ -81,18 +82,6 @@ function validateTransitionFields(
     }
   }
   return { ok: true, fields };
-}
-
-function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
-  db.exec('BEGIN IMMEDIATE');
-  try {
-    const result = fn();
-    db.exec('COMMIT');
-    return result;
-  } catch (error) {
-    db.exec('ROLLBACK');
-    throw error;
-  }
 }
 
 /**

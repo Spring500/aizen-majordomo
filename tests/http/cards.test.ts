@@ -534,4 +534,33 @@ describe('阶段 2 配置驱动卡片 API', () => {
     expect(unknownRes.status, '未知字段过滤应返回 400。若失败：检查字段存在性校验').toBe(400);
     expect(unknownBody.error.details.field, '未知字段过滤应指出 unknown。若失败：检查错误详情').toBe('unknown');
   });
+
+  it('PATCH /cards/:id 未变化字段不写入不记录 change', async () => {
+    const { app, db } = createTestApp();
+    insertCard(db, { id: 'card_noop', title: '不变标题' });
+
+    const res = await app.request('/cards/card_noop', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { title: '不变标题' } }),
+    });
+
+    const body = await readJson(res);
+    expect(
+      res.status,
+      '字段值未变化时 PATCH 应返回 200。若失败：检查后端 diff 是否正确跳过无变更请求',
+    ).toBe(200);
+    expect(
+      body.change,
+      '字段值未变化时 change 应为 null。若失败：检查后端 diff 是否在无变更时不记录 change',
+    ).toBeNull();
+
+    const changesRes = await app.request('/changes?since=0');
+    const changesBody = await readJson(changesRes);
+    const cardChanges = changesBody.changes.filter((c: any) => c.cardId === 'card_noop');
+    expect(
+      cardChanges.length,
+      '无变更时不应产生任何 change 记录。若失败：检查后端 diff 是否在无变更时跳过 recordChange',
+    ).toBe(0);
+  });
 });

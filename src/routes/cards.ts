@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types.ts';
 import { recordChange } from '../changes/repository.ts';
 import { readConfig } from '../config/repository.ts';
+import { runInTransaction } from '../db/index.ts';
 import { runCardAction } from '../cards/actions.ts';
 import { runCardTransition } from '../cards/transitions.ts';
 import {
@@ -199,6 +200,7 @@ cards.post('/:id/transition', async (c) => {
 });
 
 cards.patch('/:id', async (c) => {
+  const db = c.get('db');
   const parsed = normalizeUpdateBody(await c.req.json().catch(() => undefined));
   if (!parsed.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', parsed.error);
   if (parsed.value.statusPresent) {
@@ -208,23 +210,36 @@ cards.patch('/:id', async (c) => {
     });
   }
 
-  const existing = findCardById(c.get('db'), c.req.param('id'));
+  const existing = findCardById(db, c.req.param('id'));
   if (!existing) return notFound(c);
-  const config = readConfig(c.get('db'));
+  const config = readConfig(db);
   const cardType = findCardType(config, existing.type);
   if (!cardType) return badRequest(c, 'CONFIG_ERROR', '卡片类型配置不存在', { field: 'type', reason: existing.type });
   const actionResult = validateActionFields(cardType, 'update', parsed.value.fields);
   if (!actionResult.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...actionResult.error });
 
-  const row = updateCard(c.get('db'), existing.id, { fields: actionResult.fields });
-  if (!row) return notFound(c);
+  const changedFields = Object.fromEntries(
+    Object.entries(actionResult.fields).filter(([fieldId, newValue]) => {
+      const oldValue = existing.fields[fieldId];
+      return JSON.stringify(newValue) !== JSON.stringify(oldValue);
+    }),
+  );
 
-  const change = recordChange(c.get('db'), {
-    event: 'card.updated',
-    cardId: row.id,
-    actor: c.req.header('X-Actor') ?? 'human',
-    payload: { fields: actionResult.fields },
+  if (Object.keys(changedFields).length === 0) {
+    return c.json({ card: existing, change: null });
+  }
+
+  const result = runInTransaction(db, () => {
+    const row = updateCard(db, existing.id, { fields: changedFields });
+    if (!row) throw new Error('卡片不存在');
+    const change = recordChange(db, {
+      event: 'card.updated',
+      cardId: row.id,
+      actor: c.req.header('X-Actor') ?? 'human',
+      payload: { fields: changedFields },
+    });
+    return { card: row, change };
   });
 
-  return c.json({ card: row, change });
+  return c.json(result);
 });
