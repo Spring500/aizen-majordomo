@@ -36,6 +36,10 @@ describe('majordomo agent CLI', () => {
     expect(result.stdout, 'ask 输出应包含 wait-reply 命令，便于 agent 直接继续等待').toContain(
       'node scripts/majordomo.mjs wait-reply --card-id',
     );
+    expect(
+      result.stdout,
+      'ask 输出应包含 --since 参数，让 wait-reply 从创建之后的变更开始监听',
+    ).toMatch(/--since\s+\d+/);
   });
 
   it('wait-reply 对已有回复的 decision 输出变更历史', async () => {

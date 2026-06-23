@@ -72,12 +72,14 @@ async function ask(args) {
     body: JSON.stringify({ type: 'decision', status: 'waiting', fields }),
   });
   const id = body.card.id;
+  const seq = body.change?.seq;
+  const sinceArg = seq !== undefined ? ` --since ${seq}` : '';
   console.log(`已创建等待人类回复的 decision。
 
 本次询问的 card id 是：${id}
 
 运行以下命令等待回复：
-node scripts/majordomo.mjs wait-reply --card-id ${id}`);
+node scripts/majordomo.mjs wait-reply --card-id ${id}${sinceArg}`);
 }
 
 function extractReply(card) {
@@ -134,7 +136,7 @@ function describeChange(change) {
 async function waitReply(args) {
   const cardId = args['card-id'];
   if (!cardId) throw new Error('wait-reply 需要 --card-id');
-  let latestSeq = 0;
+  let latestSeq = Number(args.since) || 0;
 
   while (true) {
     const changes = await requestJson(`${baseUrl(args)}/changes?since=${latestSeq}`);
