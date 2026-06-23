@@ -108,7 +108,11 @@ cards.post('/', async (c) => {
   if (!cardType) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'type', reason: '未知卡片类型' });
   }
-  const status = parsed.value.status ?? config.defaults?.status ?? config.statuses.find((s) => s.enabled !== false)?.id;
+  const defaultStatus = config.defaults?.status &&
+    config.statuses.find((s) => s.id === config.defaults!.status)?.allowAsInitial !== false
+    ? config.defaults.status
+    : config.statuses.find((s) => s.enabled !== false && s.allowAsInitial !== false)?.id;
+  const status = parsed.value.status ?? defaultStatus;
   if (!status) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未配置可用状态，无法建卡' });
   }

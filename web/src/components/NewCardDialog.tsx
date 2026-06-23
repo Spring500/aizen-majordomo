@@ -21,7 +21,10 @@ export function NewCardDialog({
 }) {
   const enabledTypes = config.cardTypes.filter((item) => item.enabled !== false);
   const initialStatuses = config.statuses.filter((item) => item.enabled !== false && item.allowAsInitial !== false);
-  const defaultStatus = config.defaults?.status ?? initialStatuses[0]?.id ?? 'default';
+  const defaultStatus =
+    config.defaults?.status && initialStatuses.some((item) => item.id === config.defaults!.status)
+      ? config.defaults.status
+      : initialStatuses[0]?.id ?? 'default';
   const [type, setType] = useState(enabledTypes[0]?.id ?? 'task');
   const [status, setStatus] = useState(defaultStatus);
   const [fields, setFields] = useState<Record<string, unknown>>({});
