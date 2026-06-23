@@ -38,7 +38,7 @@ describe('majordomo agent CLI', () => {
     );
   });
 
-  it('wait-reply 对已有回复的 decision 立即输出回复内容', async () => {
+  it('wait-reply 对已有回复的 decision 输出变更历史', async () => {
     const runtime = await prepareScenarioRuntime('agent-board-config');
     const server = await startScenarioServer(runtime, { port: 0 });
     const createRes = await fetch(`${server.url}/cards`, {
@@ -67,8 +67,17 @@ describe('majordomo agent CLI', () => {
       await server.close();
     }
 
-    expect(result.stdout, 'wait-reply 对已有回复应输出已收到提示').toContain('已收到人类回复');
-    expect(result.stdout, 'wait-reply 应输出回复人').toContain('回复人：human');
-    expect(result.stdout, 'wait-reply 应输出回复内容').toContain('选择 A');
+    expect(
+      result.stdout,
+      'wait-reply 检测到变更时应输出变更历史提示。若失败：检查 waitReply 是否改为检测 changes',
+    ).toContain('卡片有新的变更');
+    expect(
+      result.stdout,
+      'wait-reply 应输出 card id。若失败：检查变更历史输出格式',
+    ).toContain(created.card.id);
+    expect(
+      result.stdout,
+      'wait-reply 应展示回复内容。若失败：检查 describeChange 对 transition 事件是否提取 reply',
+    ).toContain('选择 A');
   });
 });

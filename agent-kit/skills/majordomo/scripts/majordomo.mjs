@@ -97,26 +97,56 @@ async function wait(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function formatTime(at) {
+  return new Date(at).toLocaleString('zh-CN', { hour12: false });
+}
+
+function describeChange(change) {
+  const { event, actor, payload, at, seq } = change;
+  const time = formatTime(at);
+  const who = actor ?? 'unknown';
+
+  if (event === 'card.created') {
+    return `[${seq}] ${time}  ${who}  创建卡片（类型 ${payload.type}，状态 ${payload.status}）`;
+  }
+  if (event === 'card.updated' || event.startsWith('card.action.')) {
+    const entries = Object.entries(payload.fields ?? {});
+    if (entries.length === 0) {
+      return `[${seq}] ${time}  ${who}  编辑字段：（无）`;
+    }
+    const lines = entries.map(([key, value]) => `    ${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
+    return `[${seq}] ${time}  ${who}  编辑字段：\n${lines.join('\n')}`;
+  }
+  if (event.startsWith('card.transition')) {
+    const from = payload.fromStatus ?? '?';
+    const to = payload.toStatus ?? '?';
+    const tid = payload.transitionId ?? change.action ?? '?';
+    let line = `[${seq}] ${time}  ${who}  ${from} → ${to}  (${tid})`;
+    const reply = payload.fields?.reply;
+    if (typeof reply === 'string' && reply.trim().length > 0) {
+      line += `\n    回复内容：${reply}`;
+    }
+    return line;
+  }
+  return `[${seq}] ${time}  ${who}  ${event}`;
+}
+
 async function waitReply(args) {
   const cardId = args['card-id'];
   if (!cardId) throw new Error('wait-reply 需要 --card-id');
   let latestSeq = 0;
 
   while (true) {
-    const card = await getCard(args, cardId);
-    const found = extractReply(card);
-    if (found) {
-      console.log(`已收到人类回复。
+    const changes = await requestJson(`${baseUrl(args)}/changes?since=${latestSeq}`);
+    latestSeq = changes.latestSeq ?? latestSeq;
 
-card id：${cardId}
-回复人：${found.repliedBy}
-回复内容：
-${found.reply}`);
+    const cardChanges = (changes.changes ?? []).filter((c) => c.cardId === cardId);
+    if (cardChanges.length > 0) {
+      const lines = cardChanges.map(describeChange);
+      console.log(`卡片有新的变更，以下是完整变更历史。\n\ncard id：${cardId}\n\n${lines.join('\n\n')}`);
       return;
     }
 
-    const changes = await requestJson(`${baseUrl(args)}/changes?since=${latestSeq}`);
-    latestSeq = changes.latestSeq ?? latestSeq;
     await wait(2000);
   }
 }
