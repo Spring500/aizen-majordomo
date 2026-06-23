@@ -2,21 +2,16 @@ import { describe, expect, it } from 'vitest';
 import { createTestApp } from './helpers.ts';
 
 async function createDecision(app: ReturnType<typeof createTestApp>['app']) {
-  const createRes = await app.request('/cards', {
+  const res = await app.request('/cards', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
     body: JSON.stringify({
       type: 'decision',
+      status: 'waiting',
       fields: { title: '需要回复', options: ['A', 'B'] },
     }),
   });
-  const card = (await createRes.json()).card;
-  await app.request(`/cards/${card.id}/transition`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-    body: JSON.stringify({ transitionId: 'request_reply' }),
-  });
-  return (await (await app.request(`/cards/${card.id}`)).json()).card;
+  return (await res.json()).card;
 }
 
 describe('POST /cards/:id/actions/reply', () => {

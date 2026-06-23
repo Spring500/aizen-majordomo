@@ -14,20 +14,13 @@ async function createTask(page: import('@playwright/test').Page, title: string) 
 
 async function createWaitingDecision(page: import('@playwright/test').Page, title: string) {
   return page.evaluate(async (cardTitle) => {
-    const createRes = await fetch('/cards', {
+    const res = await fetch('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-      body: JSON.stringify({ type: 'decision', fields: { title: cardTitle } }),
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: cardTitle } }),
     });
-    if (!createRes.ok) throw new Error(`创建 decision 失败: ${createRes.status}`);
-    const card = ((await createRes.json()) as { card: { id: string } }).card;
-    const transitionRes = await fetch(`/cards/${card.id}/transition`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-      body: JSON.stringify({ transitionId: 'request_reply' }),
-    });
-    if (!transitionRes.ok) throw new Error(`流转到 waiting 失败: ${transitionRes.status}`);
-    return card.id;
+    if (!res.ok) throw new Error(`创建 waiting decision 失败: ${res.status}`);
+    return ((await res.json()) as { card: { id: string } }).card.id;
   }, title);
 }
 

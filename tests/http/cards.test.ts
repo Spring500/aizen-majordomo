@@ -84,12 +84,12 @@ describe('阶段 1 卡片 API', () => {
     const res = await app.request('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'task', status: 'waiting', fields: { title: '不应允许' } }),
+      body: JSON.stringify({ type: 'task', status: 'resolved', fields: { title: '不应允许' } }),
     });
 
     expect(
       res.status,
-      'waiting 状态配置了 allowAsInitial=false，建卡应返回 400。若失败：检查路由层是否校验 allowAsInitial',
+      'resolved 状态配置了 allowAsInitial=false，建卡应返回 400。若失败：检查路由层是否校验 allowAsInitial',
     ).toBe(400);
   });
 

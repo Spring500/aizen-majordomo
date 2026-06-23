@@ -98,14 +98,9 @@ describe('GET /changes', () => {
     const create = await app.request('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-      body: JSON.stringify({ type: 'decision', fields: { title: '需要回复' } }),
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '需要回复' } }),
     });
     const created = await create.json();
-    await app.request(`/cards/${created.card.id}/transition`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
-      body: JSON.stringify({ transitionId: 'request_reply' }),
-    });
     const beforeReply = await (await app.request('/changes?since=0')).json();
 
     await app.request(`/cards/${created.card.id}/actions/reply`, {
