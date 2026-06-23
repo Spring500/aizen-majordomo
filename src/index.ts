@@ -2,7 +2,14 @@ import { serve } from '@hono/node-server';
 import { createDb } from './db/index.ts';
 import { createApp } from './app.ts';
 
-const db = createDb();
+let db;
+try {
+  db = createDb();
+} catch (error) {
+  console.error('启动失败：配置校验未通过。');
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
 const app = createApp(db);
 
 const port = Number(process.env.PORT ?? 3000);
