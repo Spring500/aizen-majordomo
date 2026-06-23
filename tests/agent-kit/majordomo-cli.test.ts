@@ -84,4 +84,58 @@ describe('majordomo agent CLI', () => {
       'wait-reply 应展示回复内容。若失败：检查 describeChange 对 transition 事件是否提取 reply',
     ).toContain('选择 A');
   });
+
+  it('wait-reply 启动后人类执行 transition 时应检测到该 transition', async () => {
+    const runtime = await prepareScenarioRuntime('agent-board-config');
+    const server = await startScenarioServer(runtime, { port: 0 });
+
+    const createRes = await fetch(`${server.url}/cards`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '等待操作' } }),
+    });
+    const created = (await createRes.json()) as { card: { id: string }; change: { seq: number } };
+    const cardId = created.card.id;
+    const since = created.change.seq;
+
+    try {
+      const waitReplyPromise = execFileAsync(
+        'node',
+        ['scripts/majordomo.mjs', 'wait-reply', '--base-url', server.url, '--card-id', cardId, '--since', String(since)],
+        { cwd: skillDir, timeout: 15_000 },
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await fetch(`${server.url}/cards/${cardId}/transition`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({
+          transitionId: 'submit_reply',
+          fields: { reply: '同意方案 A' },
+        }),
+      });
+
+      const result = await waitReplyPromise;
+
+      expect(
+        result.stdout,
+        'wait-reply 应输出变更历史提示。若失败：检查 waitReply 是否从 --since 之后开始监听',
+      ).toContain('卡片有新的变更');
+      expect(
+        result.stdout,
+        'wait-reply 应展示 transition 流转结果，不包含创建卡片事件。若失败：检查 --since 是否正确过滤了创建事件',
+      ).toContain('waiting → resolved');
+      expect(
+        result.stdout,
+        'wait-reply 应展示回复内容。若失败：检查 describeChange 对 transition 事件是否提取 reply',
+      ).toContain('同意方案 A');
+      expect(
+        result.stdout,
+        'wait-reply 不应包含创建卡片事件。若失败：检查 --since 是否作为 latestSeq 基线过滤了已读事件',
+      ).not.toContain('创建卡片');
+    } finally {
+      await server.close();
+    }
+  });
 });
