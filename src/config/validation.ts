@@ -180,7 +180,12 @@ export function validateConfig(input: unknown): ConfigValidationResult {
   }
 
   if (config.defaults?.status && !statusIds.has(config.defaults.status)) {
-    errors.push(`defaults.status references missing status ${config.defaults.status}`);
+    errors.push(`defaults.status 引用了不存在的状态 ${config.defaults.status}`);
+  } else if (config.defaults?.status) {
+    const defaultStatus = config.statuses.find((item) => item.id === config.defaults!.status);
+    if (defaultStatus && defaultStatus.allowAsInitial === false) {
+      errors.push(`defaults.status "${config.defaults.status}" 不允许作为初始状态（allowAsInitial=false）`);
+    }
   }
 
   return errors.length === 0 ? { ok: true } : { ok: false, errors };

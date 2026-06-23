@@ -79,4 +79,20 @@ describe('阶段 2 配置模型', () => {
       '错误信息应指出 missing_field。若失败：检查配置校验错误详情',
     ).toBe(true);
   });
+
+  it('defaults.status 指向 allowAsInitial=false 状态时校验失败', () => {
+    const invalid = structuredClone(loadSeedConfig());
+    invalid.defaults = { status: 'resolved' };
+
+    const result = validateConfig(invalid);
+
+    expect(
+      result.ok,
+      'defaults.status 指向 allowAsInitial=false 的状态时校验应失败。若失败：检查 defaults.status allowAsInitial 交叉校验',
+    ).toBe(false);
+    expect(
+      result.ok ? '' : (result.errors[0] ?? '').includes('defaults.status'),
+      '错误信息应明确指出 defaults.status。若失败：检查错误信息是否包含 defaults.status',
+    ).toBe(true);
+  });
 });
