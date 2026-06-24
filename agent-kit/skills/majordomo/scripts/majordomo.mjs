@@ -136,11 +136,10 @@ function describeChange(change) {
 async function waitReply(args) {
   const cardId = args['card-id'];
   if (!cardId) throw new Error('wait-reply 需要 --card-id');
-  let latestSeq = Number(args.since) || 0;
+  const since = Number(args.since) || 0;
 
   while (true) {
-    const changes = await requestJson(`${baseUrl(args)}/changes?since=${latestSeq}`);
-    latestSeq = changes.latestSeq ?? latestSeq;
+    const changes = await requestJson(`${baseUrl(args)}/changes?since=${since}`);
 
     const cardChanges = (changes.changes ?? []).filter((c) => c.cardId === cardId);
     const hasTransition = cardChanges.some((c) => c.event.startsWith('card.transition.'));

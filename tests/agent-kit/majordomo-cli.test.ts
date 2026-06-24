@@ -215,4 +215,66 @@ describe('majordomo agent CLI', () => {
       await server.close();
     }
   });
+
+  it('wait-reply 回显包含跨轮询周期的全部变更', async () => {
+    const runtime = await prepareScenarioRuntime('agent-board-config');
+    const server = await startScenarioServer(runtime, { port: 0 });
+
+    const createRes = await fetch(`${server.url}/cards`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '跨轮询变更测试' } }),
+    });
+    const created = (await createRes.json()) as { card: { id: string }; change: { seq: number } };
+    const cardId = created.card.id;
+    const since = created.change.seq;
+
+    try {
+      const waitReplyPromise = execFileAsync(
+        'node',
+        ['scripts/majordomo.mjs', 'wait-reply', '--base-url', server.url, '--card-id', cardId, '--since', String(since)],
+        { cwd: skillDir, timeout: 20_000 },
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await fetch(`${server.url}/cards/${cardId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({ fields: { risk_level: 'high' } }),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      await fetch(`${server.url}/cards/${cardId}/transition`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({
+          transitionId: 'submit_reply',
+          fields: { reply: '跨轮询回复' },
+        }),
+      });
+
+      const result = await waitReplyPromise;
+
+      expect(
+        result.stdout,
+        'wait-reply 应在 transition 后输出状态流转提示',
+      ).toContain('卡片已发生状态流转');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含跨轮询周期的字段修改记录。若失败：latestSeq 在无 transition 时被推进导致早期变更丢失',
+      ).toContain('risk_level');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含 transition 流转记录',
+      ).toContain('waiting → resolved');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含回复内容',
+      ).toContain('跨轮询回复');
+    } finally {
+      await server.close();
+    }
+  });
 });
