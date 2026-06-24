@@ -105,7 +105,7 @@ export function CardDrawer({
     setFields(card?.fields ?? {});
     setError('');
     setSaving(false);
-  }, [card]);
+  }, [card?.id]);
 
   if (!card) {
     return (
