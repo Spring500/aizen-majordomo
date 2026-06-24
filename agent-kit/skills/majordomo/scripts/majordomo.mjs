@@ -143,9 +143,18 @@ async function waitReply(args) {
     latestSeq = changes.latestSeq ?? latestSeq;
 
     const cardChanges = (changes.changes ?? []).filter((c) => c.cardId === cardId);
-    if (cardChanges.length > 0) {
+    const hasTransition = cardChanges.some((c) => c.event.startsWith('card.transition.'));
+    if (cardChanges.length > 0 && hasTransition) {
       const lines = cardChanges.map(describeChange);
-      console.log(`卡片有新的变更，以下是完整变更历史。\n\ncard id：${cardId}\n\n${lines.join('\n\n')}`);
+      const lastSeq = cardChanges[cardChanges.length - 1].seq;
+      console.log(`卡片已发生状态流转，以下是自上次以来的全部变更。
+
+card id：${cardId}
+
+${lines.join('\n\n')}
+
+如需继续等待该卡片的下一次流转，运行以下命令：
+node scripts/majordomo.mjs wait-reply --card-id ${cardId} --since ${lastSeq}`);
       return;
     }
 
