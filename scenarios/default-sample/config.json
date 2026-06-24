@@ -72,8 +72,7 @@
           ]
         },
         { "id": "options", "label": "选项", "kind": "stringList", "system": true },
-        { "id": "reply", "label": "正式回复", "kind": "longText", "system": true },
-        { "id": "replied_by", "label": "回复人", "kind": "actor", "system": true }
+        { "id": "reply", "label": "正式回复", "kind": "longText", "system": true }
       ],
       "actions": [
         {
@@ -96,7 +95,7 @@
           "label": "正式回复",
           "kind": "reply",
           "system": true,
-          "writableFields": ["reply", "replied_by"],
+          "writableFields": ["reply"],
           "requiredFields": ["reply"]
         }
       ]
@@ -131,8 +130,8 @@
     { "id": "default", "name": "默认", "category": "todo", "position": 0, "color": "#64748b", "system": true, "enabled": true },
     { "id": "active", "name": "处理中", "category": "active", "position": 1, "color": "#2563eb", "system": true, "enabled": true },
     { "id": "waiting", "name": "等待回复", "category": "waiting", "position": 2, "color": "#d97706", "system": true, "enabled": true },
-    { "id": "resolved", "name": "已解决", "category": "done", "position": 3, "color": "#059669", "system": true, "enabled": true },
-    { "id": "done", "name": "完成", "category": "done", "position": 4, "color": "#16a34a", "system": true, "enabled": true }
+    { "id": "resolved", "name": "已解决", "category": "done", "position": 3, "color": "#059669", "system": true, "enabled": true, "allowAsInitial": false },
+    { "id": "done", "name": "完成", "category": "done", "position": 4, "color": "#16a34a", "system": true, "enabled": true, "allowAsInitial": false }
   ],
   "transitions": [
     {
@@ -161,7 +160,7 @@
       "cardType": "decision",
       "fromStatus": "waiting",
       "toStatus": "resolved",
-      "writableFields": ["reply", "replied_by"],
+      "writableFields": ["reply"],
       "requiredFields": ["reply"],
       "system": true,
       "enabled": true
@@ -192,5 +191,8 @@
       "system": true,
       "enabled": false
     }
-  ]
+  ],
+  "defaults": {
+    "status": "default"
+  }
 }

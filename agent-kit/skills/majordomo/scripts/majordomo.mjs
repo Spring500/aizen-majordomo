@@ -72,18 +72,20 @@ async function ask(args) {
     body: JSON.stringify({ type: 'decision', status: 'waiting', fields }),
   });
   const id = body.card.id;
+  const seq = body.change?.seq;
+  const sinceArg = seq !== undefined ? ` --since ${seq}` : '';
   console.log(`已创建等待人类回复的 decision。
 
 本次询问的 card id 是：${id}
 
 运行以下命令等待回复：
-node scripts/majordomo.mjs wait-reply --card-id ${id}`);
+node scripts/majordomo.mjs wait-reply --card-id ${id}${sinceArg}`);
 }
 
 function extractReply(card) {
-  const reply = card?.fields?.reply ?? card?.reply;
+  const reply = card?.fields?.reply;
   if (typeof reply === 'string' && reply.trim().length > 0) {
-    return { reply, repliedBy: card?.fields?.replied_by ?? card?.replied_by ?? 'human' };
+    return { reply, repliedBy: card?.fields?.replied_by ?? 'human' };
   }
   return null;
 }
@@ -97,26 +99,64 @@ async function wait(ms) {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function formatTime(at) {
+  return new Date(at).toLocaleString('zh-CN', { hour12: false });
+}
+
+function describeChange(change) {
+  const { event, actor, payload, at, seq } = change;
+  const time = formatTime(at);
+  const who = actor ?? 'unknown';
+
+  if (event === 'card.created') {
+    return `[${seq}] ${time}  ${who}  创建卡片（类型 ${payload.type}，状态 ${payload.status}）`;
+  }
+  if (event === 'card.updated' || event.startsWith('card.action.')) {
+    const entries = Object.entries(payload.fields ?? {});
+    if (entries.length === 0) {
+      return `[${seq}] ${time}  ${who}  编辑字段：（无）`;
+    }
+    const lines = entries.map(([key, value]) => `    ${key}: ${typeof value === 'string' ? value : JSON.stringify(value)}`);
+    return `[${seq}] ${time}  ${who}  编辑字段：\n${lines.join('\n')}`;
+  }
+  if (event.startsWith('card.transition')) {
+    const from = payload.fromStatus ?? '?';
+    const to = payload.toStatus ?? '?';
+    const tid = payload.transitionId ?? change.action ?? '?';
+    let line = `[${seq}] ${time}  ${who}  ${from} → ${to}  (${tid})`;
+    const reply = payload.fields?.reply;
+    if (typeof reply === 'string' && reply.trim().length > 0) {
+      line += `\n    回复内容：${reply}`;
+    }
+    return line;
+  }
+  return `[${seq}] ${time}  ${who}  ${event}`;
+}
+
 async function waitReply(args) {
   const cardId = args['card-id'];
   if (!cardId) throw new Error('wait-reply 需要 --card-id');
-  let latestSeq = 0;
+  const since = Number(args.since) || 0;
 
   while (true) {
-    const card = await getCard(args, cardId);
-    const found = extractReply(card);
-    if (found) {
-      console.log(`已收到人类回复。
+    const changes = await requestJson(`${baseUrl(args)}/changes?since=${since}`);
+
+    const cardChanges = (changes.changes ?? []).filter((c) => c.cardId === cardId);
+    const hasTransition = cardChanges.some((c) => c.event.startsWith('card.transition.'));
+    if (cardChanges.length > 0 && hasTransition) {
+      const lines = cardChanges.map(describeChange);
+      const lastSeq = cardChanges[cardChanges.length - 1].seq;
+      console.log(`卡片已发生状态流转，以下是自上次以来的全部变更。
 
 card id：${cardId}
-回复人：${found.repliedBy}
-回复内容：
-${found.reply}`);
+
+${lines.join('\n\n')}
+
+如需继续等待该卡片的下一次流转，运行以下命令：
+node scripts/majordomo.mjs wait-reply --card-id ${cardId} --since ${lastSeq}`);
       return;
     }
 
-    const changes = await requestJson(`${baseUrl(args)}/changes?since=${latestSeq}`);
-    latestSeq = changes.latestSeq ?? latestSeq;
     await wait(2000);
   }
 }

@@ -22,20 +22,16 @@ test('阶段 3 宽屏可筛出等待回复 decision 并提交正式回复', asyn
   await page.reload();
 
   const filters = page.getByRole('complementary', { name: '筛选' });
-  await filters.getByRole('button', { name: '等待回复快捷筛选' }).click();
+  await filters.getByRole('button', { name: '等待回复', exact: true }).click();
   await page.getByRole('button', { name: /阶段三宽屏决策/ }).click();
 
   const drawer = page.getByRole('complementary', { name: '卡片详情' });
-  await drawer.getByLabel('回复内容').fill('采用方案 A');
+  await drawer.getByLabel('正式回复').fill('采用方案 A');
   await drawer.getByRole('button', { name: '提交回复' }).click();
 
   await expect(
     drawer.getByText('采用方案 A'),
-    '提交正式回复后详情应显示回复内容。若失败：检查 reply action 和 CardDrawer 刷新',
-  ).toBeVisible();
-  await expect(
-    drawer.getByText('回复人：human'),
-    '提交正式回复后详情应显示回复人。若失败：检查 replied_by 写入和展示',
+    '提交正式回复后详情应显示回复内容。若失败：检查 submit_reply transition 和 CardDrawer 刷新',
   ).toBeVisible();
 });
 
@@ -47,11 +43,11 @@ test('阶段 3 窄屏可通过筛选抽屉提交正式回复', async ({ page }) 
 
   await page.getByRole('button', { name: '筛选', exact: true }).click();
   const filters = page.getByRole('complementary', { name: '筛选' });
-  await filters.getByRole('button', { name: '等待回复快捷筛选' }).click();
+  await filters.getByRole('button', { name: '等待回复', exact: true }).click();
   await page.getByRole('button', { name: /阶段三窄屏决策/ }).click();
 
   const drawer = page.getByRole('complementary', { name: '卡片详情' });
-  await drawer.getByLabel('回复内容').fill('窄屏采用方案 B');
+  await drawer.getByLabel('正式回复').fill('窄屏采用方案 B');
   await drawer.getByRole('button', { name: '提交回复' }).click();
 
   await expect(

@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+﻿import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getConfig } from './api/config.ts';
-import { createCard, getCard, listCards, runCardAction, updateCard } from './api/cards.ts';
+import { createCard, getCard, listCards, runCardTransition, updateCard } from './api/cards.ts';
 import { CardDrawer } from './components/CardDrawer.tsx';
 import { CardList } from './components/CardList.tsx';
 import { CardPagination } from './components/CardPagination.tsx';
@@ -8,10 +8,15 @@ import { ErrorMessage } from './components/ErrorMessage.tsx';
 import { NewCardDialog } from './components/NewCardDialog.tsx';
 import { SidebarFilters } from './components/SidebarFilters.tsx';
 import { Topbar } from './components/Topbar.tsx';
-import type { AppConfig, Card, CardFilters } from './types.ts';
+import type { WorkspaceConfig, Card, CardFilters } from './types.ts';
 
+/**
+ * 前端工作台根组件。
+ *
+ * 负责读取配置、维护列表筛选和详情选择，并把普通保存与状态流转分发到不同 API。
+ */
 export function App() {
-  const [config, setConfig] = useState<AppConfig | null>(null);
+  const [config, setConfig] = useState<WorkspaceConfig | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [selected, setSelected] = useState<Card | null>(null);
   const [filters, setFilters] = useState<CardFilters>({ type: '', limit: 50, offset: 0 });
@@ -37,15 +42,12 @@ export function App() {
       setCards(result.cards);
       setTotal(result.total);
       setCountsByType(result.countsByType);
-      if (selected && !result.cards.some((card) => card.id === selected.id)) {
-        setSelected(null);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : '读取卡片失败');
     } finally {
       setLoading(false);
     }
-  }, [filters, selected]);
+  }, [filters]);
 
   useEffect(() => {
     if (config) void loadCards();
@@ -72,15 +74,15 @@ export function App() {
   async function save(input: Parameters<typeof updateCard>[1]) {
     if (!selected) return;
     const card = await updateCard(selected.id, input);
-    setSelected(card);
     await loadCards();
+    setSelected(card);
   }
 
-  async function reply(input: { fields: Record<string, unknown> }) {
+  async function transition(input: { transitionId: string; fields?: Record<string, unknown>; comment?: string }) {
     if (!selected) return;
-    const card = await runCardAction(selected.id, 'reply', input);
-    setSelected(card);
+    const card = await runCardTransition(selected.id, input);
     await loadCards();
+    setSelected(card);
   }
 
   function changeFilters(next: CardFilters) {
@@ -169,7 +171,7 @@ export function App() {
           open={drawerOpen}
           onClose={() => setDrawerOpen(false)}
           onSave={save}
-          onReply={reply}
+          onTransition={transition}
         />
       </div>
       <NewCardDialog config={config} open={dialogOpen} onClose={() => setDialogOpen(false)} onCreate={create} />

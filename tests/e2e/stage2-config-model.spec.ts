@@ -62,6 +62,47 @@ test('阶段 2 配置驱动字段、状态和过滤路径可用', async ({ page 
   ).toBeVisible();
 });
 
+test('编辑字段时列表刷新不应重置已修改的表单状态', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '新建卡片' }).click();
+  const dialog = page.getByRole('region', { name: '新建卡片' });
+  await dialog.getByLabel('Status').selectOption('active');
+  await dialog.getByLabel('标题').fill('竞态测试卡');
+  await dialog.getByLabel('风险等级').selectOption('high');
+  await dialog.getByRole('button', { name: '创建' }).click();
+
+  await expect(
+    page.getByRole('button', { name: /竞态测试卡/ }),
+    '建卡后列表应显示新卡',
+  ).toBeVisible();
+
+  await page.getByRole('button', { name: /竞态测试卡/ }).click();
+  const drawer = page.getByRole('complementary', { name: '卡片详情' });
+  await expect(drawer.getByLabel('Status')).toHaveValue('处理中');
+
+  await drawer.getByLabel('风险等级').selectOption('low');
+  await expect(drawer.getByLabel('风险等级')).toHaveValue('low');
+
+  await page.getByRole('button', { name: /竞态测试卡/ }).click();
+
+  await expect(
+    drawer.getByLabel('风险等级'),
+    '重新点击同一卡片后下拉框应仍保持 low，不被重置。若失败：useEffect([card]) 因 card 引用变化重置了表单状态',
+  ).toHaveValue('low');
+
+  const patchResponse = await Promise.all([
+    page.waitForResponse(
+      (response) => response.url().includes('/cards/') && response.request().method() === 'PATCH',
+    ),
+    drawer.getByRole('button', { name: '保存' }).click(),
+  ]);
+
+  expect(
+    patchResponse[0].ok(),
+    `PATCH 应返回 2xx，实际: ${patchResponse[0].status()}。若失败：表单状态被重置导致 diff 为空`,
+  ).toBe(true);
+});
+
 test('大量卡片只滚动列表区域且分页与控制栏保持可见', async ({ page }) => {
   await page.setViewportSize({ width: 702, height: 698 });
   await page.goto('/');

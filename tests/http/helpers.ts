@@ -31,7 +31,6 @@ export function insertCard(db: DatabaseSync, overrides: Record<string, unknown> 
     priority: overrides.priority ?? 0,
     assignee: overrides.assignee,
     reply: overrides.reply,
-    replied_by: overrides.replied_by,
   };
 
   db.prepare(

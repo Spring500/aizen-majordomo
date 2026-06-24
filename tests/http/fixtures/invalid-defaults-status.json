@@ -1,0 +1,26 @@
+{
+  "cardTypes": [
+    {
+      "id": "task",
+      "name": "Task",
+      "enabled": true,
+      "position": 1,
+      "fields": [
+        { "id": "title", "label": "标题", "kind": "text", "required": true, "system": true }
+      ],
+      "actions": [
+        { "id": "create", "label": "创建", "kind": "create", "system": true, "writableFields": ["title"], "requiredFields": ["title"] }
+      ]
+    }
+  ],
+  "statuses": [
+    { "id": "default", "name": "默认", "category": "todo", "position": 0, "system": true, "enabled": true },
+    { "id": "done", "name": "完成", "category": "done", "position": 1, "system": true, "enabled": true, "allowAsInitial": false }
+  ],
+  "transitions": [],
+  "hookActionModels": [],
+  "hooks": [],
+  "defaults": {
+    "status": "done"
+  }
+}

@@ -31,7 +31,6 @@ export async function listCards(filters: CardFilters): Promise<ListCardsResponse
   const params = new URLSearchParams();
   if (filters.type) params.set('type', filters.type);
   if (filters.status) params.set('status', filters.status);
-  if (filters.assignee) params.set('assignee', filters.assignee);
   if (filters.limit) params.set('limit', String(filters.limit));
   if (filters.offset) params.set('offset', String(filters.offset));
   for (const [fieldId, value] of Object.entries(filters.fields ?? {})) {
@@ -81,6 +80,24 @@ export async function runCardAction(
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(input),
+  });
+  return (await parseResponse<CardResponse>(res)).card;
+}
+
+/**
+ * 执行一条卡片状态流转。
+ *
+ * 调用方必须传入配置中的 transitionId；后端会校验当前状态、卡片类型和可写字段，
+ * 成功后返回最新卡片。普通字段保存仍应使用 updateCard。
+ */
+export async function runCardTransition(
+  id: string,
+  input: { transitionId: string; fields?: Record<string, unknown>; comment?: string },
+): Promise<Card> {
+  const res = await fetch(`/cards/${id}/transition`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ ...input, fields: input.fields ?? {} }),
   });
   return (await parseResponse<CardResponse>(res)).card;
 }

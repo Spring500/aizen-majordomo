@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AppConfig, CardFilters, FieldDefinition, FieldKind } from '../types.ts';
+﻿import { useEffect, useMemo, useState } from 'react';
+import type { WorkspaceConfig, CardFilters, FieldDefinition, FieldKind } from '../types.ts';
 
 const filterableKinds = new Set<FieldKind>(['text', 'number', 'boolean', 'stringList', 'enum', 'actor']);
 
@@ -68,7 +68,7 @@ export function SidebarFilters({
 }: {
   filters: CardFilters;
   counts: Record<string, number>;
-  config: AppConfig;
+  config: WorkspaceConfig;
   open: boolean;
   onClose: () => void;
   onChange: (filters: CardFilters) => void;
@@ -115,7 +115,7 @@ export function SidebarFilters({
 
   function clearFieldFilters() {
     setDraftFields({});
-    onChange({ ...filters, assignee: undefined, fields: {} });
+    onChange({ ...filters, fields: {} });
   }
 
   function applyFieldFilters() {
@@ -125,7 +125,7 @@ export function SidebarFilters({
         return field && filterableKinds.has(field.kind) && value !== '';
       }),
     );
-    onChange({ ...filters, assignee: undefined, fields: nextFields });
+    onChange({ ...filters, fields: nextFields });
     onClose();
   }
 
@@ -166,19 +166,6 @@ export function SidebarFilters({
               <span className="count">{counts[item.id] ?? 0}</span>
             </button>
           ))}
-        </div>
-      </section>
-      <section className="sidebar-section">
-        <h2>快捷</h2>
-        <div className="filter-list">
-          <button
-            aria-label="等待回复快捷筛选"
-            className={`filter-item ${filters.type === 'decision' && filters.status === 'waiting' ? 'active' : ''}`}
-            type="button"
-            onClick={() => updateFilters({ ...filters, type: 'decision', status: 'waiting' })}
-          >
-            <span>等待回复</span>
-          </button>
         </div>
       </section>
       <section className="sidebar-section">

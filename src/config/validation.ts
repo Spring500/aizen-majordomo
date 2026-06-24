@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import type { AppConfig, ConfigValidationResult } from './types.ts';
+﻿import { z } from 'zod';
+import type { WorkspaceConfig, ConfigValidationResult } from './types.ts';
 
 const fieldSchema = z.object({
   id: z.string().min(1),
@@ -55,6 +55,7 @@ const configSchema = z.object({
       position: z.number(),
       color: z.string().optional(),
       enabled: z.boolean().optional(),
+      allowAsInitial: z.boolean().optional(),
       system: z.boolean().optional(),
     }),
   ),
@@ -92,6 +93,11 @@ const configSchema = z.object({
       system: z.boolean().optional(),
     }),
   ),
+  defaults: z
+    .object({
+      status: z.string().optional(),
+    })
+    .optional(),
 });
 
 function duplicateIds(items: Array<{ id: string }>, label: string, errors: string[]) {
@@ -108,7 +114,7 @@ export function validateConfig(input: unknown): ConfigValidationResult {
     return { ok: false, errors: parsed.error.issues.map((issue) => `${issue.path.join('.')}: ${issue.message}`) };
   }
 
-  const config = parsed.data as AppConfig;
+  const config = parsed.data as WorkspaceConfig;
   const errors: string[] = [];
   duplicateIds(config.cardTypes, 'cardTypes', errors);
   duplicateIds(config.statuses, 'statuses', errors);
@@ -173,10 +179,19 @@ export function validateConfig(input: unknown): ConfigValidationResult {
     }
   }
 
+  if (config.defaults?.status && !statusIds.has(config.defaults.status)) {
+    errors.push(`defaults.status 引用了不存在的状态 ${config.defaults.status}`);
+  } else if (config.defaults?.status) {
+    const defaultStatus = config.statuses.find((item) => item.id === config.defaults!.status);
+    if (defaultStatus && defaultStatus.allowAsInitial === false) {
+      errors.push(`defaults.status "${config.defaults.status}" 不允许作为初始状态（allowAsInitial=false）`);
+    }
+  }
+
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
 
-export function assertValidConfig(config: AppConfig): void {
+export function assertValidConfig(config: WorkspaceConfig): void {
   const result = validateConfig(config);
   if (!result.ok) {
     throw new Error(`配置无效: ${result.errors.join('; ')}`);

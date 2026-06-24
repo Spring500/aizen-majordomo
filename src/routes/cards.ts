@@ -2,7 +2,9 @@ import { Hono } from 'hono';
 import type { AppEnv } from '../types.ts';
 import { recordChange } from '../changes/repository.ts';
 import { readConfig } from '../config/repository.ts';
+import { runInTransaction } from '../db/index.ts';
 import { runCardAction } from '../cards/actions.ts';
+import { runCardTransition } from '../cards/transitions.ts';
 import {
   createCard,
   enabledStatusExists,
@@ -15,7 +17,6 @@ import {
   validateActionFields,
 } from '../cards/repository.ts';
 import { fieldFilterEntries, normalizeCreateBody, normalizeUpdateBody, parsePagination } from '../cards/validation.ts';
-import { DEFAULT_STATUS } from '../cards/types.ts';
 import { badRequest, notFound } from '../http/errors.ts';
 
 export const cards = new Hono<AppEnv>();
@@ -35,6 +36,33 @@ function parseFieldFilterValue(field: NonNullable<ReturnType<typeof findField>>,
   return undefined;
 }
 
+function normalizeTransitionBody(input: unknown):
+  | { ok: true; value: { transitionId: string; fields: Record<string, unknown>; comment?: string } }
+  | { ok: false; error: { field: string; reason: string } } {
+  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
+    return { ok: false, error: { field: 'body', reason: '请求体必须是对象' } };
+  }
+  const body = input as Record<string, unknown>;
+  if (typeof body.transitionId !== 'string' || body.transitionId.trim().length === 0) {
+    return { ok: false, error: { field: 'transitionId', reason: 'transitionId 不能为空' } };
+  }
+  const fields = body.fields === undefined ? {} : body.fields;
+  if (typeof fields !== 'object' || fields === null || Array.isArray(fields)) {
+    return { ok: false, error: { field: 'fields', reason: 'fields 必须是对象' } };
+  }
+  if (body.comment !== undefined && typeof body.comment !== 'string') {
+    return { ok: false, error: { field: 'comment', reason: 'comment 必须是字符串' } };
+  }
+  return {
+    ok: true,
+    value: {
+      transitionId: body.transitionId,
+      fields: fields as Record<string, unknown>,
+      comment: body.comment,
+    },
+  };
+}
+
 cards.get('/', (c) => {
   const pagination = parsePagination(new URL(c.req.url));
   if (!pagination.ok) return badRequest(c, 'VALIDATION_ERROR', '查询参数无效', pagination.error);
@@ -42,8 +70,6 @@ cards.get('/', (c) => {
   const config = readConfig(c.get('db'));
   const url = new URL(c.req.url);
   const rawFieldFilters = fieldFilterEntries(url);
-  if (c.req.query('lane')) rawFieldFilters.push({ fieldId: 'lane', rawValue: c.req.query('lane')! });
-  if (c.req.query('assignee')) rawFieldFilters.push({ fieldId: 'assignee', rawValue: c.req.query('assignee')! });
 
   const fieldFilters = [];
   for (const filter of rawFieldFilters) {
@@ -83,12 +109,20 @@ cards.post('/', async (c) => {
   if (!cardType) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'type', reason: '未知卡片类型' });
   }
-  const status = parsed.value.status ?? DEFAULT_STATUS;
+  const defaultStatus = config.defaults?.status &&
+    config.statuses.find((s) => s.id === config.defaults!.status)?.allowAsInitial !== false
+    ? config.defaults.status
+    : config.statuses.find((s) => s.enabled !== false && s.allowAsInitial !== false)?.id;
+  const status = parsed.value.status ?? defaultStatus;
+  if (!status) {
+    return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未配置可用状态，无法建卡' });
+  }
   if (!enabledStatusExists(config, status)) {
     return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '未知状态' });
   }
-  if (!findField(cardType, 'options') && Object.hasOwn(parsed.value.fields, 'options')) {
-    delete parsed.value.fields.options;
+  const statusConfig = config.statuses.find((item) => item.id === status);
+  if (statusConfig && statusConfig.allowAsInitial === false) {
+    return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { field: 'status', reason: '该状态不允许作为新建卡片的初始状态' });
   }
   const actionResult = validateActionFields(cardType, 'create', parsed.value.fields);
   if (!actionResult.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...actionResult.error });
@@ -143,7 +177,30 @@ cards.post('/:id/actions/:actionId', async (c) => {
   return c.json({ card: result.card, change: result.change });
 });
 
+cards.post('/:id/transition', async (c) => {
+  const parsed = normalizeTransitionBody(await c.req.json().catch(() => undefined));
+  if (!parsed.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', parsed.error);
+
+  const config = readConfig(c.get('db'));
+  const result = runCardTransition(c.get('db'), config, {
+    cardId: c.req.param('id'),
+    transitionId: parsed.value.transitionId,
+    fields: parsed.value.fields,
+    comment: parsed.value.comment,
+    actor: c.req.header('X-Actor') ?? 'human',
+  });
+
+  if (!result.ok && result.status === 404) return notFound(c);
+  if (!result.ok && result.status === 409) {
+    return c.json({ error: { code: 'TRANSITION_CONFLICT', message: '当前状态不允许执行该流转', details: result.error } }, 409);
+  }
+  if (!result.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...result.error });
+
+  return c.json({ card: result.card, change: result.change, comment: result.comment });
+});
+
 cards.patch('/:id', async (c) => {
+  const db = c.get('db');
   const parsed = normalizeUpdateBody(await c.req.json().catch(() => undefined));
   if (!parsed.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', parsed.error);
   if (parsed.value.statusPresent) {
@@ -153,23 +210,36 @@ cards.patch('/:id', async (c) => {
     });
   }
 
-  const existing = findCardById(c.get('db'), c.req.param('id'));
+  const existing = findCardById(db, c.req.param('id'));
   if (!existing) return notFound(c);
-  const config = readConfig(c.get('db'));
+  const config = readConfig(db);
   const cardType = findCardType(config, existing.type);
   if (!cardType) return badRequest(c, 'CONFIG_ERROR', '卡片类型配置不存在', { field: 'type', reason: existing.type });
   const actionResult = validateActionFields(cardType, 'update', parsed.value.fields);
   if (!actionResult.ok) return badRequest(c, 'VALIDATION_ERROR', '请求参数无效', { ...actionResult.error });
 
-  const row = updateCard(c.get('db'), existing.id, { fields: actionResult.fields });
-  if (!row) return notFound(c);
+  const changedFields = Object.fromEntries(
+    Object.entries(actionResult.fields).filter(([fieldId, newValue]) => {
+      const oldValue = existing.fields[fieldId];
+      return JSON.stringify(newValue) !== JSON.stringify(oldValue);
+    }),
+  );
 
-  const change = recordChange(c.get('db'), {
-    event: 'card.updated',
-    cardId: row.id,
-    actor: c.req.header('X-Actor') ?? 'human',
-    payload: { fields: actionResult.fields },
+  if (Object.keys(changedFields).length === 0) {
+    return c.json({ card: existing, change: null });
+  }
+
+  const result = runInTransaction(db, () => {
+    const row = updateCard(db, existing.id, { fields: changedFields });
+    if (!row) throw new Error('卡片不存在');
+    const change = recordChange(db, {
+      event: 'card.updated',
+      cardId: row.id,
+      actor: c.req.header('X-Actor') ?? 'human',
+      payload: { fields: changedFields },
+    });
+    return { card: row, change };
   });
 
-  return c.json({ card: row, change });
+  return c.json(result);
 });

@@ -36,9 +36,13 @@ describe('majordomo agent CLI', () => {
     expect(result.stdout, 'ask 输出应包含 wait-reply 命令，便于 agent 直接继续等待').toContain(
       'node scripts/majordomo.mjs wait-reply --card-id',
     );
+    expect(
+      result.stdout,
+      'ask 输出应包含 --since 参数，让 wait-reply 从创建之后的变更开始监听',
+    ).toMatch(/--since\s+\d+/);
   });
 
-  it('wait-reply 对已有回复的 decision 立即输出回复内容', async () => {
+  it('wait-reply 对已有回复的 decision 输出变更历史', async () => {
     const runtime = await prepareScenarioRuntime('agent-board-config');
     const server = await startScenarioServer(runtime, { port: 0 });
     const createRes = await fetch(`${server.url}/cards`, {
@@ -47,10 +51,13 @@ describe('majordomo agent CLI', () => {
       body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '需要回复' } }),
     });
     const created = (await createRes.json()) as { card: { id: string } };
-    await fetch(`${server.url}/cards/${created.card.id}/actions/reply`, {
+    await fetch(`${server.url}/cards/${created.card.id}/transition`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
-      body: JSON.stringify({ fields: { reply: '选择 A', replied_by: 'human' } }),
+      body: JSON.stringify({
+        transitionId: 'submit_reply',
+        fields: { reply: '选择 A' },
+      }),
     });
 
     let result: { stdout: string };
@@ -67,8 +74,207 @@ describe('majordomo agent CLI', () => {
       await server.close();
     }
 
-    expect(result.stdout, 'wait-reply 对已有回复应输出已收到提示').toContain('已收到人类回复');
-    expect(result.stdout, 'wait-reply 应输出回复人').toContain('回复人：human');
-    expect(result.stdout, 'wait-reply 应输出回复内容').toContain('选择 A');
+    expect(
+      result.stdout,
+      'wait-reply 检测到流转时应输出状态流转提示。若失败：检查 waitReply 是否改为检测 transition 事件',
+    ).toContain('卡片已发生状态流转');
+    expect(
+      result.stdout,
+      'wait-reply 应输出 card id。若失败：检查变更历史输出格式',
+    ).toContain(created.card.id);
+    expect(
+      result.stdout,
+      'wait-reply 应展示回复内容。若失败：检查 describeChange 对 transition 事件是否提取 reply',
+    ).toContain('选择 A');
+    expect(
+      result.stdout,
+      'wait-reply 结束时应提示继续等待的命令。若失败：检查回显是否包含 wait-reply 命令',
+    ).toMatch(/wait-reply --card-id \S+ --since \d+/);
+  });
+
+  it('wait-reply 启动后人类执行 transition 时应检测到该 transition', async () => {
+    const runtime = await prepareScenarioRuntime('agent-board-config');
+    const server = await startScenarioServer(runtime, { port: 0 });
+
+    const createRes = await fetch(`${server.url}/cards`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '等待操作' } }),
+    });
+    const created = (await createRes.json()) as { card: { id: string }; change: { seq: number } };
+    const cardId = created.card.id;
+    const since = created.change.seq;
+
+    try {
+      const waitReplyPromise = execFileAsync(
+        'node',
+        ['scripts/majordomo.mjs', 'wait-reply', '--base-url', server.url, '--card-id', cardId, '--since', String(since)],
+        { cwd: skillDir, timeout: 15_000 },
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await fetch(`${server.url}/cards/${cardId}/transition`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({
+          transitionId: 'submit_reply',
+          fields: { reply: '同意方案 A' },
+        }),
+      });
+
+      const result = await waitReplyPromise;
+
+      expect(
+        result.stdout,
+        'wait-reply 应输出状态流转提示。若失败：检查 waitReply 是否从 --since 之后开始监听',
+      ).toContain('卡片已发生状态流转');
+      expect(
+        result.stdout,
+        'wait-reply 应展示 transition 流转结果，不包含创建卡片事件。若失败：检查 --since 是否正确过滤了创建事件',
+      ).toContain('waiting → resolved');
+      expect(
+        result.stdout,
+        'wait-reply 应展示回复内容。若失败：检查 describeChange 对 transition 事件是否提取 reply',
+      ).toContain('同意方案 A');
+      expect(
+        result.stdout,
+        'wait-reply 不应包含创建卡片事件。若失败：检查 --since 是否作为 latestSeq 基线过滤了已读事件',
+      ).not.toContain('创建卡片');
+      expect(
+        result.stdout,
+        'wait-reply 结束时应提示继续等待的命令。若失败：检查回显是否包含 wait-reply 命令和 --since 参数',
+      ).toMatch(/wait-reply --card-id \S+ --since \d+/);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('wait-reply 对仅修改字段不触发结束，之后执行 transition 才结束', async () => {
+    const runtime = await prepareScenarioRuntime('agent-board-config');
+    const server = await startScenarioServer(runtime, { port: 0 });
+
+    const createRes = await fetch(`${server.url}/cards`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '仅字段修改测试' } }),
+    });
+    const created = (await createRes.json()) as { card: { id: string }; change: { seq: number } };
+    const cardId = created.card.id;
+    const since = created.change.seq;
+
+    try {
+      const waitReplyPromise = execFileAsync(
+        'node',
+        ['scripts/majordomo.mjs', 'wait-reply', '--base-url', server.url, '--card-id', cardId, '--since', String(since)],
+        { cwd: skillDir, timeout: 15_000 },
+      );
+
+      let exitedEarly = false;
+      waitReplyPromise.then(() => { exitedEarly = true; });
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await fetch(`${server.url}/cards/${cardId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({ fields: { risk_level: 'high' } }),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
+      expect(
+        exitedEarly,
+        'wait-reply 对仅字段修改不应结束。若失败：waitReply 退出条件未正确过滤 card.updated 事件',
+      ).toBe(false);
+
+      await fetch(`${server.url}/cards/${cardId}/transition`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({
+          transitionId: 'submit_reply',
+          fields: { reply: '同意' },
+        }),
+      });
+
+      const result = await waitReplyPromise;
+
+      expect(
+        result.stdout,
+        'wait-reply 应在 transition 后输出状态流转提示',
+      ).toContain('卡片已发生状态流转');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含字段修改的变更记录。若失败：检查回显是否包含所有变更而不只是 transition',
+      ).toContain('risk_level');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含 transition 流转记录',
+      ).toContain('waiting → resolved');
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('wait-reply 回显包含跨轮询周期的全部变更', async () => {
+    const runtime = await prepareScenarioRuntime('agent-board-config');
+    const server = await startScenarioServer(runtime, { port: 0 });
+
+    const createRes = await fetch(`${server.url}/cards`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'X-Actor': 'agent' },
+      body: JSON.stringify({ type: 'decision', status: 'waiting', fields: { title: '跨轮询变更测试' } }),
+    });
+    const created = (await createRes.json()) as { card: { id: string }; change: { seq: number } };
+    const cardId = created.card.id;
+    const since = created.change.seq;
+
+    try {
+      const waitReplyPromise = execFileAsync(
+        'node',
+        ['scripts/majordomo.mjs', 'wait-reply', '--base-url', server.url, '--card-id', cardId, '--since', String(since)],
+        { cwd: skillDir, timeout: 20_000 },
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      await fetch(`${server.url}/cards/${cardId}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({ fields: { risk_level: 'high' } }),
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+
+      await fetch(`${server.url}/cards/${cardId}/transition`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
+        body: JSON.stringify({
+          transitionId: 'submit_reply',
+          fields: { reply: '跨轮询回复' },
+        }),
+      });
+
+      const result = await waitReplyPromise;
+
+      expect(
+        result.stdout,
+        'wait-reply 应在 transition 后输出状态流转提示',
+      ).toContain('卡片已发生状态流转');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含跨轮询周期的字段修改记录。若失败：latestSeq 在无 transition 时被推进导致早期变更丢失',
+      ).toContain('risk_level');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含 transition 流转记录',
+      ).toContain('waiting → resolved');
+      expect(
+        result.stdout,
+        'wait-reply 回显应包含回复内容',
+      ).toContain('跨轮询回复');
+    } finally {
+      await server.close();
+    }
   });
 });

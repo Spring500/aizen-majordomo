@@ -33,7 +33,7 @@ describe('GET /cards 列卡', () => {
       '返回卡片的 id 应为 card_1。若失败：检查 SELECT * 的字段映射是否与表结构一致',
     ).toBe('card_1');
     expect(
-      body.cards[0].options,
+      body.cards[0].fields.options,
       'options 应由 JSON 字符串解析回数组 ["SSE","WebSocket"]。若仍是字符串：检查 serialize() 里的 JSON.parse 是否生效',
     ).toEqual(['SSE', 'WebSocket']);
   });
@@ -46,7 +46,7 @@ describe('阶段 1 卡片 API', () => {
     const res = await app.request('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'task', title: '补齐卡片 API', body: '阶段 1 后端能力' }),
+      body: JSON.stringify({ type: 'task', fields: { title: '补齐卡片 API', body: '阶段 1 后端能力' } }),
     });
 
     const body = await readJson(res);
@@ -59,7 +59,7 @@ describe('阶段 1 卡片 API', () => {
       '未显式传 status 时应默认为 default。若失败：检查 create card 的默认值填充逻辑',
     ).toBe('default');
     expect(
-      body.card.title,
+      body.card.fields.title,
       '返回标题应为请求标题。若失败：检查 title trim 与 INSERT/serialize 字段映射',
     ).toBe('补齐卡片 API');
     expect(
@@ -67,23 +67,30 @@ describe('阶段 1 卡片 API', () => {
       '创建响应应包含完整卡片字段。若失败：检查 serializeCard 是否漏掉 schema 中的字段',
     ).toEqual(
       [
-        'assignee',
-        'body',
         'created_at',
         'created_by',
         'fields',
         'id',
-        'lane',
-        'options',
-        'priority',
-        'replied_by',
-        'reply',
         'status',
-        'title',
         'type',
         'updated_at',
       ].sort(),
     );
+  });
+
+  it('POST /cards 指定 allowAsInitial=false 的状态时返回 400', async () => {
+    const { app } = createTestApp();
+
+    const res = await app.request('/cards', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ type: 'task', status: 'resolved', fields: { title: '不应允许' } }),
+    });
+
+    expect(
+      res.status,
+      'resolved 状态配置了 allowAsInitial=false，建卡应返回 400。若失败：检查路由层是否校验 allowAsInitial',
+    ).toBe(400);
   });
 
   it('POST /cards 创建 decision 时保存 options，读取时 options 为数组', async () => {
@@ -94,8 +101,7 @@ describe('阶段 1 卡片 API', () => {
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         type: 'decision',
-        title: '阶段 1 前端详情用什么形态',
-        options: ['右侧抽屉', '单独详情页'],
+        fields: { title: '阶段 1 前端详情用什么形态', options: ['右侧抽屉', '单独详情页'] },
       }),
     });
 
@@ -109,43 +115,39 @@ describe('阶段 1 卡片 API', () => {
       '创建 decision 后响应 type 应保持 decision。若失败：检查 INSERT 参数绑定',
     ).toBe('decision');
     expect(
-      body.card.options,
+      body.card.fields.options,
       'decision 的 options 应在响应中解析为数组。若失败：检查 options 持久化和 serializeCard',
     ).toEqual(['右侧抽屉', '单独详情页']);
 
     const readRes = await app.request(`/cards/${body.card.id}`);
     const readBody = await readJson(readRes);
     expect(
-      readBody.card.options,
+      readBody.card.fields.options,
       'GET /cards/:id 读取 decision 时 options 仍应是数组。若失败：检查单卡读取是否复用统一序列化',
     ).toEqual(['右侧抽屉', '单独详情页']);
   });
 
-  it('POST /cards 创建 memo 成功且忽略非 decision 的 options', async () => {
+  it('POST /cards 创建 memo 传未配置字段 options 返回 400', async () => {
     const { app } = createTestApp();
 
     const res = await app.request('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'memo', title: '记录一个观察', options: ['不应保存'] }),
+      body: JSON.stringify({ type: 'memo', fields: { title: '记录一个观察', options: ['不应保存'] } }),
     });
 
     const body = await readJson(res);
-    expect(res.status, '创建 memo 应返回 201。若失败：检查 create schema 是否接受 memo').toBe(201);
-    expect(body.card.type, '创建 memo 后响应 type 应保持 memo。若失败：检查 INSERT 参数绑定').toBe('memo');
-    expect(
-      body.card.options,
-      '非 decision 的 options 应被忽略并返回 null。若失败：检查 create repository 的 options 归一化',
-    ).toBeNull();
+    expect(res.status, 'memo 未配置 options 字段，传 options 应返回 400 而非静默忽略').toBe(400);
+    expect(body.error.details.field, '错误详情应指出 options 字段').toBe('options');
   });
 
   it('POST /cards 缺少 type、非法 type、缺少 title、纯空白 title 均返回 400 并指出字段', async () => {
     const { app } = createTestApp();
     const cases = [
-      { name: '缺少 type', input: { title: '无类型' }, field: 'type' },
-      { name: '非法 type', input: { type: 'bug', title: '非法类型' }, field: 'type' },
+      { name: '缺少 type', input: { fields: { title: '无类型' } }, field: 'type' },
+      { name: '非法 type', input: { type: 'bug', fields: { title: '非法类型' } }, field: 'type' },
       { name: '缺少 title', input: { type: 'task' }, field: 'title' },
-      { name: '纯空白 title', input: { type: 'task', title: '   ' }, field: 'title' },
+      { name: '纯空白 title', input: { type: 'task', fields: { title: '   ' } }, field: 'title' },
     ];
 
     for (const item of cases) {
@@ -176,7 +178,7 @@ describe('阶段 1 卡片 API', () => {
     const withActorRes = await app.request('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'codex' },
-      body: JSON.stringify({ type: 'task', title: '带 actor 创建' }),
+      body: JSON.stringify({ type: 'task', fields: { title: '带 actor 创建' } }),
     });
     const withActorBody = await readJson(withActorRes);
     expect(
@@ -187,7 +189,7 @@ describe('阶段 1 卡片 API', () => {
     const defaultActorRes = await app.request('/cards', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'task', title: '默认 actor 创建' }),
+      body: JSON.stringify({ type: 'task', fields: { title: '默认 actor 创建' } }),
     });
     const defaultActorBody = await readJson(defaultActorRes);
     expect(
@@ -196,14 +198,14 @@ describe('阶段 1 卡片 API', () => {
     ).toBe('human');
   });
 
-  it('GET /cards 支持 type、status、lane、assignee 过滤且多个条件为 AND', async () => {
+  it('GET /cards 支持 type、status、field.lane、field.assignee 过滤且多个条件为 AND', async () => {
     const { app, db } = createTestApp();
     insertCard(db, { id: 'card_match', type: 'task', status: 'default', lane: 'work', assignee: 'human' });
     insertCard(db, { id: 'card_type_miss', type: 'memo', status: 'default', lane: 'work', assignee: 'human' });
     insertCard(db, { id: 'card_status_miss', type: 'task', status: 'done', lane: 'work', assignee: 'human' });
     insertCard(db, { id: 'card_assignee_miss', type: 'task', status: 'default', lane: 'work', assignee: 'agent' });
 
-    const res = await app.request('/cards?type=task&status=default&lane=work&assignee=human');
+    const res = await app.request('/cards?type=task&status=default&field.lane=work&field.assignee=human');
     const body = await readJson(res);
 
     expect(
@@ -314,21 +316,23 @@ describe('阶段 1 卡片 API', () => {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        title: '更新后的标题',
-        body: '更新后的正文',
-        priority: 2,
-        lane: 'doing',
-        assignee: 'human',
+        fields: {
+          title: '更新后的标题',
+          body: '更新后的正文',
+          priority: 2,
+          lane: 'doing',
+          assignee: 'human',
+        },
       }),
     });
     const body = await readJson(res);
 
     expect(res.status, 'PATCH 允许字段应返回 200。若失败：检查 PATCH /cards/:id 路由和 update schema').toBe(200);
-    expect(body.card.title, 'PATCH 后 title 应更新。若失败：检查 UPDATE SET title').toBe('更新后的标题');
-    expect(body.card.body, 'PATCH 后 body 应更新。若失败：检查 UPDATE SET body').toBe('更新后的正文');
-    expect(body.card.priority, 'PATCH 后 priority 应更新。若失败：检查 UPDATE SET priority').toBe(2);
-    expect(body.card.lane, 'PATCH 后 lane 应更新。若失败：检查 UPDATE SET lane').toBe('doing');
-    expect(body.card.assignee, 'PATCH 后 assignee 应更新。若失败：检查 UPDATE SET assignee').toBe('human');
+    expect(body.card.fields.title, 'PATCH 后 title 应更新。若失败：检查 UPDATE SET title').toBe('更新后的标题');
+    expect(body.card.fields.body, 'PATCH 后 body 应更新。若失败：检查 UPDATE SET body').toBe('更新后的正文');
+    expect(body.card.fields.priority, 'PATCH 后 priority 应更新。若失败：检查 UPDATE SET priority').toBe(2);
+    expect(body.card.fields.lane, 'PATCH 后 lane 应更新。若失败：检查 UPDATE SET lane').toBe('doing');
+    expect(body.card.fields.assignee, 'PATCH 后 assignee 应更新。若失败：检查 UPDATE SET assignee').toBe('human');
     expect(
       body.card.updated_at >= inserted.updated_at,
       'PATCH 后 updated_at 应不早于旧值。若失败：检查 update repository 是否写 Date.now()',
@@ -363,7 +367,7 @@ describe('阶段 1 卡片 API', () => {
     const res = await app.request('/cards/card_missing', {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: '不存在' }),
+      body: JSON.stringify({ fields: { title: '不存在' } }),
     });
     const body = await readJson(res);
 
@@ -401,10 +405,10 @@ describe('阶段 2 配置驱动卡片 API', () => {
       body.card.fields.risk_level,
       '阶段 1 之外字段 risk_level 应写入 fields 响应。若失败：检查 card_field_values 写入',
     ).toBe('high');
-    expect(body.card.title, '扁平 title 兼容字段应保留。若失败：检查双形状响应序列化').toBe('配置驱动建卡');
+    expect(body.card.fields.title, 'title 应写入 fields。若失败：检查 fields 序列化').toBe('配置驱动建卡');
   });
 
-  it('POST /cards 按 create action 拒绝未授权字段和冲突字段', async () => {
+  it('POST /cards 按 create action 拒绝未授权字段', async () => {
     const { app } = createTestApp();
 
     const forbiddenRes = await app.request('/cards', {
@@ -421,18 +425,6 @@ describe('阶段 2 配置驱动卡片 API', () => {
       forbiddenBody.error.details.field,
       '未授权字段错误应指出 reply。若失败：检查字段级错误详情',
     ).toBe('reply');
-
-    const conflictRes = await app.request('/cards', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ type: 'task', title: '扁平标题', fields: { title: 'fields 标题' } }),
-    });
-    const conflictBody = await readJson(conflictRes);
-    expect(conflictRes.status, '扁平字段和 fields 同时出现同字段应返回 400。若失败：检查冲突检测').toBe(400);
-    expect(
-      conflictBody.error.details.field,
-      '冲突字段错误应指出 title。若失败：检查冲突错误 details.field',
-    ).toBe('title');
   });
 
   it('POST /cards 校验配置状态，未知状态返回 400', async () => {
@@ -474,7 +466,7 @@ describe('阶段 2 配置驱动卡片 API', () => {
     const updated = await readJson(updateRes);
     expect(updateRes.status, 'update action 允许字段应更新成功。若失败：检查 PATCH fields 归一化').toBe(200);
     expect(updated.card.fields.risk_level, 'risk_level 应通过 PATCH 更新。若失败：检查字段值 upsert').toBe('high');
-    expect(updated.card.title, '扁平 title 应由 fields 派生为已更新。若失败：检查序列化').toBe('已更新');
+    expect(updated.card.fields.title, 'title 应通过 fields 更新。若失败：检查字段值 upsert').toBe('已更新');
 
     const statusRes = await app.request(`/cards/${created.card.id}`, {
       method: 'PATCH',
@@ -514,21 +506,21 @@ describe('阶段 2 配置驱动卡片 API', () => {
     const riskRes = await app.request('/cards?field.risk_level=high&all=true');
     const riskBody = await readJson(riskRes);
     expect(
-      riskBody.cards.map((card: any) => card.title),
+      riskBody.cards.map((card: any) => card.fields.title),
       'field.risk_level=high 应只返回高风险卡。若失败：检查 enum 字段过滤',
     ).toEqual(['高风险']);
 
-    const aliasRes = await app.request('/cards?assignee=human&all=true');
+    const aliasRes = await app.request('/cards?field.assignee=human&all=true');
     const aliasBody = await readJson(aliasRes);
     expect(
-      aliasBody.cards.map((card: any) => card.title),
-      'assignee 兼容别名应等价于 field.assignee。若失败：检查过滤别名映射',
+      aliasBody.cards.map((card: any) => card.fields.title),
+      'field.assignee=human 应只返回负责人为 human 的卡。若失败：检查字段过滤',
     ).toEqual(['高风险']);
 
     const optionsRes = await app.request('/cards?field.options=右侧抽屉&all=true');
     const optionsBody = await readJson(optionsRes);
     expect(
-      optionsBody.cards.map((card: any) => card.title),
+      optionsBody.cards.map((card: any) => card.fields.title),
       'stringList 字段过滤应按列表包含匹配。若失败：检查 json_each 查询和 stringList 过滤解析',
     ).toEqual(['选项卡']);
 
@@ -541,5 +533,34 @@ describe('阶段 2 配置驱动卡片 API', () => {
     const unknownBody = await readJson(unknownRes);
     expect(unknownRes.status, '未知字段过滤应返回 400。若失败：检查字段存在性校验').toBe(400);
     expect(unknownBody.error.details.field, '未知字段过滤应指出 unknown。若失败：检查错误详情').toBe('unknown');
+  });
+
+  it('PATCH /cards/:id 未变化字段不写入不记录 change', async () => {
+    const { app, db } = createTestApp();
+    insertCard(db, { id: 'card_noop', title: '不变标题' });
+
+    const res = await app.request('/cards/card_noop', {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ fields: { title: '不变标题' } }),
+    });
+
+    const body = await readJson(res);
+    expect(
+      res.status,
+      '字段值未变化时 PATCH 应返回 200。若失败：检查后端 diff 是否正确跳过无变更请求',
+    ).toBe(200);
+    expect(
+      body.change,
+      '字段值未变化时 change 应为 null。若失败：检查后端 diff 是否在无变更时不记录 change',
+    ).toBeNull();
+
+    const changesRes = await app.request('/changes?since=0');
+    const changesBody = await readJson(changesRes);
+    const cardChanges = changesBody.changes.filter((c: any) => c.cardId === 'card_noop');
+    expect(
+      cardChanges.length,
+      '无变更时不应产生任何 change 记录。若失败：检查后端 diff 是否在无变更时跳过 recordChange',
+    ).toBe(0);
   });
 });

@@ -30,13 +30,14 @@ CREATE TABLE IF NOT EXISTS card_types (
 );
 
 CREATE TABLE IF NOT EXISTS statuses (
-  id       TEXT PRIMARY KEY,
-  name     TEXT NOT NULL,
-  category TEXT,
-  position INTEGER NOT NULL,
-  color    TEXT,
-  enabled  INTEGER NOT NULL DEFAULT 1,
-  system   INTEGER NOT NULL DEFAULT 0
+  id                TEXT PRIMARY KEY,
+  name              TEXT NOT NULL,
+  category          TEXT,
+  position          INTEGER NOT NULL,
+  color             TEXT,
+  enabled           INTEGER NOT NULL DEFAULT 1,
+  allow_as_initial  INTEGER NOT NULL DEFAULT 1,
+  system            INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS transitions (

@@ -1,4 +1,4 @@
-import type { AppConfig, Card, FieldDefinition } from '../types.ts';
+﻿import type { WorkspaceConfig, Card, FieldDefinition } from '../types.ts';
 
 function stringifyFieldValue(field: FieldDefinition, value: unknown) {
   if (value === undefined || value === null || value === '') return '';
@@ -12,18 +12,20 @@ function stringifyFieldValue(field: FieldDefinition, value: unknown) {
   return String(value);
 }
 
-function configuredFields(card: Card, config: AppConfig) {
+function configuredFields(card: Card, config: WorkspaceConfig) {
   return config.cardTypes.find((item) => item.id === card.type)?.fields.filter((field) => !field.hidden) ?? [];
 }
 
 function cardPrimaryText(card: Card, fields: FieldDefinition[]) {
-  if (card.title?.trim()) return card.title;
+  const title = card.fields.title;
+  if (typeof title === 'string' && title.trim()) return title;
   const textField = fields.find((field) => field.kind === 'text' && stringifyFieldValue(field, card.fields[field.id]));
   return textField ? stringifyFieldValue(textField, card.fields[textField.id]) : card.id;
 }
 
 function cardSecondaryText(card: Card, fields: FieldDefinition[], primary: string) {
-  if (card.body?.trim()) return card.body;
+  const body = card.fields.body;
+  if (typeof body === 'string' && body.trim()) return body;
   for (const field of fields) {
     const value = stringifyFieldValue(field, card.fields[field.id]);
     if (value && value !== primary) return value;
@@ -31,6 +33,11 @@ function cardSecondaryText(card: Card, fields: FieldDefinition[], primary: strin
   return '';
 }
 
+/**
+ * 配置化卡片列表。
+ *
+ * 列表主副信息来自卡片快捷字段或卡片类型字段配置，状态标签来自 config.statuses。
+ */
 export function CardList({
   cards,
   config,
@@ -39,7 +46,7 @@ export function CardList({
   onSelect,
 }: {
   cards: Card[];
-  config: AppConfig;
+  config: WorkspaceConfig;
   selectedId?: string;
   loading: boolean;
   onSelect: (card: Card) => void;
@@ -53,7 +60,7 @@ export function CardList({
         const fields = configuredFields(card, config);
         const primary = cardPrimaryText(card, fields);
         const secondary = cardSecondaryText(card, fields, primary);
-        const waitingReply = card.type === 'decision' && card.status === 'waiting' && !card.reply && !card.fields.reply;
+        const status = config.statuses.find((item) => item.id === card.status);
         return (
           <button
             className={`card-row ${selectedId === card.id ? 'selected' : ''}`}
@@ -66,9 +73,11 @@ export function CardList({
               <strong>{primary}</strong>
               {secondary && <small>{secondary}</small>}
             </span>
-            {waitingReply && <span className="status-pill waiting">等待回复</span>}
-            {card.priority !== null && <span className="priority">P{card.priority}</span>}
-            {card.assignee && <span className="assignee">{card.assignee}</span>}
+            <span className={`status-pill ${card.status}`}>{status?.name ?? card.status}</span>
+            {typeof card.fields.priority === 'number' && <span className="priority">P{card.fields.priority}</span>}
+            {typeof card.fields.assignee === 'string' && card.fields.assignee && (
+              <span className="assignee">{card.fields.assignee}</span>
+            )}
           </button>
         );
       })}

@@ -2,6 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { initializeConfig } from '../../src/config/initialize.ts';
 import { createDb } from '../../src/db/index.ts';
 import { loadSeedConfig } from '../../src/config/load-seed.ts';
 import { readConfig } from '../../src/config/repository.ts';
@@ -30,6 +31,23 @@ describe('阶段 2 配置种子加载', () => {
       config.statuses.some((item) => item.id === 'waiting'),
       '默认配置应包含 waiting 状态。若失败：检查 default-sample/config.json 内容',
     ).toBe(true);
+  });
+
+  it('重复初始化 statuses 和 transitions 不产生重复数据', () => {
+    delete process.env.CONFIG_SEED_PATH;
+    const db = createDb(':memory:');
+    const seed = loadSeedConfig();
+
+    initializeConfig(db);
+    initializeConfig(db);
+
+    const statusCount = db.prepare('SELECT COUNT(*) AS total FROM statuses').get() as { total: number };
+    const transitionCount = db.prepare('SELECT COUNT(*) AS total FROM transitions').get() as { total: number };
+
+    expect(statusCount.total, '重复初始化后 statuses 数量应等于样例配置数量，不能插入重复状态').toBe(seed.statuses.length);
+    expect(transitionCount.total, '重复初始化后 transitions 数量应等于样例配置数量，不能插入重复流转').toBe(
+      seed.transitions.length,
+    );
   });
 
   it('指定 CONFIG_SEED_PATH 时使用该 JSON 初始化数据库配置', () => {

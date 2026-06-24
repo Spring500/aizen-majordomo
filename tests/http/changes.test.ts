@@ -106,7 +106,7 @@ describe('GET /changes', () => {
     await app.request(`/cards/${created.card.id}/actions/reply`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
-      body: JSON.stringify({ fields: { reply: '选择 A', replied_by: 'human' } }),
+      body: JSON.stringify({ fields: { reply: '选择 A' } }),
     });
     const body = await (await app.request(`/changes?since=${beforeReply.latestSeq}`)).json();
 

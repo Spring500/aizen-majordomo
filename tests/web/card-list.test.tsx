@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+﻿import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { CardList } from '../../web/src/components/CardList.tsx';
-import type { AppConfig, Card } from '../../web/src/types.ts';
+import type { WorkspaceConfig, Card } from '../../web/src/types.ts';
 
-const config: AppConfig = {
+const config: WorkspaceConfig = {
   cardTypes: [
     {
       id: 'review',
@@ -15,7 +15,7 @@ const config: AppConfig = {
       actions: [],
     },
   ],
-  statuses: [],
+  statuses: [{ id: 'triage', name: '分拣' }],
   transitions: [],
   hookActionModels: [],
   hooks: [],
@@ -26,14 +26,6 @@ const card: Card = {
   type: 'review',
   status: 'triage',
   fields: { case_subject: '第三方数据导出核验', audit_domain: 'privacy' },
-  title: null,
-  body: null,
-  options: null,
-  lane: null,
-  priority: null,
-  assignee: null,
-  reply: null,
-  replied_by: null,
   created_by: 'scenario',
   created_at: 1,
   updated_at: 1,
@@ -56,7 +48,7 @@ describe('配置化卡片列表展示', () => {
   });
 
   it('等待回复的 decision 在列表中显示等待回复标记', () => {
-    const decisionConfig: AppConfig = {
+    const decisionConfig: WorkspaceConfig = {
       cardTypes: [
         {
           id: 'decision',
@@ -65,7 +57,7 @@ describe('配置化卡片列表展示', () => {
           actions: [],
         },
       ],
-      statuses: [],
+      statuses: [{ id: 'waiting', name: '等待回复' }],
       transitions: [],
       hookActionModels: [],
       hooks: [],
@@ -76,7 +68,6 @@ describe('配置化卡片列表展示', () => {
       type: 'decision',
       status: 'waiting',
       fields: { title: '等待人类拍板' },
-      title: '等待人类拍板',
     };
 
     const html = renderToStaticMarkup(
@@ -84,6 +75,9 @@ describe('配置化卡片列表展示', () => {
     );
 
     expect(html, '等待回复 decision 应显示等待回复标记。若失败：检查 CardList 是否识别 decision/waiting/reply').toContain(
+      '等待回复',
+    );
+    expect(html, '列表应使用配置化状态名称展示状态标签。若失败：检查 CardList 是否映射 config.statuses').toContain(
       '等待回复',
     );
   });

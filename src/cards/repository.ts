@@ -1,7 +1,7 @@
-import { randomUUID } from 'node:crypto';
+﻿import { randomUUID } from 'node:crypto';
 import type { DatabaseSync } from 'node:sqlite';
-import type { AppConfig, CardTypeConfig, FieldDefinition } from '../config/types.ts';
-import { DEFAULT_ACTOR, DEFAULT_STATUS, type Card, type CardCoreRow } from './types.ts';
+import type { WorkspaceConfig, CardTypeConfig, FieldDefinition } from '../config/types.ts';
+import { DEFAULT_ACTOR, type Card, type CardCoreRow } from './types.ts';
 import { serializeCard } from './serialize.ts';
 
 export interface CreateCardInput {
@@ -37,7 +37,7 @@ function parseValue(value: string): unknown {
   return JSON.parse(value);
 }
 
-export function findCardType(config: AppConfig, type: string): CardTypeConfig | null {
+export function findCardType(config: WorkspaceConfig, type: string): CardTypeConfig | null {
   return config.cardTypes.find((item) => item.id === type && item.enabled !== false) ?? null;
 }
 
@@ -50,7 +50,7 @@ export function findAction(cardType: CardTypeConfig, actionId: string) {
   return action ?? null;
 }
 
-export function enabledStatusExists(config: AppConfig, status: string): boolean {
+export function enabledStatusExists(config: WorkspaceConfig, status: string): boolean {
   return config.statuses.some((item) => item.id === status && item.enabled !== false);
 }
 
@@ -167,7 +167,7 @@ export function createCard(db: DatabaseSync, input: CreateCardInput): Card {
   const row = {
     id,
     type: input.type,
-    status: input.status ?? DEFAULT_STATUS,
+    status: input.status ?? 'default',
     created_by: input.actor ?? DEFAULT_ACTOR,
     created_at: now,
     updated_at: now,
@@ -249,5 +249,28 @@ export function updateCard(db: DatabaseSync, id: string, input: UpdateCardInput)
   const now = Date.now();
   writeFieldValues(db, id, input.fields, now);
   db.prepare('UPDATE cards SET updated_at = @updated_at WHERE id = @id').run({ id, updated_at: now });
+  return findCardById(db, id);
+}
+
+/**
+ * 在一次卡片业务操作中更新状态和字段。
+ *
+ * transition 服务使用该函数保证 `cards.status`、字段值和 `updated_at`
+ * 表达同一次状态流转的结果；调用方负责开启事务和完成业务校验。
+ */
+export function updateCardStateAndFields(
+  db: DatabaseSync,
+  id: string,
+  input: { status: string; fields: Record<string, unknown> },
+): Card | null {
+  const existing = findCardById(db, id);
+  if (!existing) return null;
+  const now = Date.now();
+  writeFieldValues(db, id, input.fields, now);
+  db.prepare('UPDATE cards SET status = @status, updated_at = @updated_at WHERE id = @id').run({
+    id,
+    status: input.status,
+    updated_at: now,
+  });
   return findCardById(db, id);
 }

@@ -1,11 +1,12 @@
-import type { DatabaseSync } from 'node:sqlite';
+﻿import type { DatabaseSync } from 'node:sqlite';
 import type {
-  AppConfig,
+  WorkspaceConfig,
   CardTypeConfig,
   HookActionModelConfig,
   HookConfig,
   StatusConfig,
   TransitionConfig,
+  WorkspaceDefaults,
 } from './types.ts';
 
 function bool(value: unknown, fallback = false) {
@@ -18,7 +19,7 @@ function json<T>(value: string | null | undefined, fallback: T): T {
   return JSON.parse(value) as T;
 }
 
-export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
+export function upsertConfig(db: DatabaseSync, config: WorkspaceConfig): void {
   const tx = db.prepare('SELECT 1');
   tx.get();
   for (const item of config.cardTypes) {
@@ -47,14 +48,15 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
 
   for (const item of config.statuses) {
     db.prepare(
-      `INSERT INTO statuses (id, name, category, position, color, enabled, system)
-       VALUES (@id, @name, @category, @position, @color, @enabled, @system)
+      `INSERT INTO statuses (id, name, category, position, color, enabled, allow_as_initial, system)
+       VALUES (@id, @name, @category, @position, @color, @enabled, @allow_as_initial, @system)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          category = excluded.category,
          position = excluded.position,
          color = excluded.color,
          enabled = excluded.enabled,
+         allow_as_initial = excluded.allow_as_initial,
          system = excluded.system`,
     ).run({
       id: item.id,
@@ -63,6 +65,7 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
       position: item.position,
       color: item.color ?? null,
       enabled: item.enabled === false ? 0 : 1,
+      allow_as_initial: item.allowAsInitial === false ? 0 : 1,
       system: item.system ? 1 : 0,
     });
   }
@@ -137,9 +140,14 @@ export function upsertConfig(db: DatabaseSync, config: AppConfig): void {
       system: item.system ? 1 : 0,
     });
   }
+
+  db.prepare(
+    `INSERT INTO settings (key, value) VALUES ('defaults', @value)
+     ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
+  ).run({ value: JSON.stringify(config.defaults ?? {}) });
 }
 
-export function readConfig(db: DatabaseSync): AppConfig {
+export function readConfig(db: DatabaseSync): WorkspaceConfig {
   const cardTypes = db
     .prepare('SELECT * FROM card_types ORDER BY position ASC, id ASC')
     .all()
@@ -164,6 +172,7 @@ export function readConfig(db: DatabaseSync): AppConfig {
       position: row.position,
       color: row.color ?? undefined,
       enabled: bool(row.enabled, true),
+      allowAsInitial: bool(row.allow_as_initial, true),
       system: bool(row.system),
     }));
 
@@ -207,5 +216,8 @@ export function readConfig(db: DatabaseSync): AppConfig {
       system: bool(row.system),
     }));
 
-  return { cardTypes, statuses, transitions, hookActionModels, hooks };
+  const defaultsRow = db.prepare("SELECT value FROM settings WHERE key = 'defaults'").get() as { value: string } | undefined;
+  const defaults = defaultsRow ? json<WorkspaceDefaults>(defaultsRow.value, {}) : {};
+
+  return { cardTypes, statuses, transitions, hookActionModels, hooks, defaults };
 }

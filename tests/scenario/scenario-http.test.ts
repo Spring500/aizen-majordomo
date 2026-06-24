@@ -97,7 +97,6 @@ describe('阶段 2 场景化配置 HTTP 证明点', () => {
       const body = await json(list);
       const task = body.cards.find((card: any) => card.id === 'legacy-task-1');
 
-      expect(task.title, '旧库迁移后应保留阶段 1 扁平 title。若失败：检查 serializeCard 兼容字段').toBe('旧任务标题');
       expect(task.fields.title, '旧库迁移后 fields.title 应可读。若失败：检查 card_field_values 迁移').toBe('旧任务标题');
     });
   });

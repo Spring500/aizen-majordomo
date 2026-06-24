@@ -10,6 +10,18 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 export const DEFAULT_DB_PATH =
   process.env.DB_PATH ?? join(process.cwd(), 'data', 'majordomo.db');
 
+export function runInTransaction<T>(db: DatabaseSync, fn: () => T): T {
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const result = fn();
+    db.exec('COMMIT');
+    return result;
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+}
+
 // 建库:设 PRAGMA(WAL=并发读+原子写)并建表。传 ':memory:' 用于测试隔离。
 export function createDb(path: string = DEFAULT_DB_PATH): DatabaseSync {
   if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });
@@ -24,6 +36,7 @@ export function createDb(path: string = DEFAULT_DB_PATH): DatabaseSync {
 export function migrate(db: DatabaseSync): void {
   migrateCardsTable(db);
   migrateChangesTable(db);
+  migrateStatusesTable(db);
   const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
   db.exec(schema);
   initializeConfig(db);
@@ -77,6 +90,7 @@ function migrateCardsTable(db: DatabaseSync): void {
      VALUES (@card_id, @field_id, @value_json, @updated_at)`,
   );
 
+  // 仅用于 stage2 老库迁移，新字段不在此列。
   const fieldIds = ['title', 'body', 'options', 'lane', 'priority', 'assignee', 'reply', 'replied_by'];
   for (const row of oldRows) {
     insertCard.run({
@@ -136,5 +150,13 @@ function migrateChangesTable(db: DatabaseSync): void {
       payload_json: JSON.stringify({ oldValue: row.old_value ?? null, newValue: row.new_value ?? null }),
       at: row.at,
     } as Record<string, SQLInputValue>);
+  }
+}
+
+function migrateStatusesTable(db: DatabaseSync): void {
+  if (!tableExists(db, 'statuses')) return;
+  const columns = columnNames(db, 'statuses');
+  if (!columns.includes('allow_as_initial')) {
+    db.exec('ALTER TABLE statuses ADD COLUMN allow_as_initial INTEGER NOT NULL DEFAULT 1;');
   }
 }

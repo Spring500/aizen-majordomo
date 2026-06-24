@@ -1,11 +1,11 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+﻿import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { NewCardDialog } from '../../web/src/components/NewCardDialog.tsx';
-import type { AppConfig } from '../../web/src/types.ts';
+import type { WorkspaceConfig } from '../../web/src/types.ts';
 
 describe('阶段 2 配置驱动表单', () => {
   it('新建表单按传入配置渲染字段和状态，而不是写死样例字段', () => {
-    const config: AppConfig = {
+    const config: WorkspaceConfig = {
       cardTypes: [
         {
           id: 'review',

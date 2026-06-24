@@ -22,13 +22,12 @@ describe('POST /cards/:id/actions/reply', () => {
     const res = await app.request(`/cards/${card.id}/actions/reply`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'X-Actor': 'human' },
-      body: JSON.stringify({ fields: { reply: '选择 A', replied_by: 'human' } }),
+      body: JSON.stringify({ fields: { reply: '选择 A' } }),
     });
 
     expect(res.status, '提交 decision 回复应成功，失败时检查 reply action 路由和配置校验').toBe(200);
     const body = await res.json();
     expect(body.card.fields.reply, '正式回复应持久化到 fields.reply').toBe('选择 A');
-    expect(body.card.fields.replied_by, '回复人应持久化到 fields.replied_by').toBe('human');
     expect(body.card.status, '阶段 3 回复不应自动修改状态').toBe('waiting');
     expect(body.change.event, '回复应写入 card.action.reply 事件').toBe('card.action.reply');
     expect(body.change.action, '回复事件应记录 action=reply，便于 agent 按动作识别').toBe('reply');

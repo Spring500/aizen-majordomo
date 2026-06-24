@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { AppConfig, CardTypeConfig } from '../types.ts';
+﻿import { useEffect, useMemo, useState } from 'react';
+import type { WorkspaceConfig, CardTypeConfig } from '../types.ts';
 import { DynamicFieldInput } from './DynamicFields.tsx';
 import { ErrorMessage } from './ErrorMessage.tsx';
 
@@ -15,14 +15,18 @@ export function NewCardDialog({
   onCreate,
 }: {
   open: boolean;
-  config: AppConfig;
+  config: WorkspaceConfig;
   onClose: () => void;
   onCreate: (input: { type: string; status?: string; fields: Record<string, unknown> }) => Promise<void>;
 }) {
   const enabledTypes = config.cardTypes.filter((item) => item.enabled !== false);
-  const enabledStatuses = config.statuses.filter((item) => item.enabled !== false);
+  const initialStatuses = config.statuses.filter((item) => item.enabled !== false && item.allowAsInitial !== false);
+  const defaultStatus =
+    config.defaults?.status && initialStatuses.some((item) => item.id === config.defaults!.status)
+      ? config.defaults.status
+      : initialStatuses[0]?.id ?? 'default';
   const [type, setType] = useState(enabledTypes[0]?.id ?? 'task');
-  const [status, setStatus] = useState('default');
+  const [status, setStatus] = useState(defaultStatus);
   const [fields, setFields] = useState<Record<string, unknown>>({});
   const [error, setError] = useState('');
   const [creating, setCreating] = useState(false);
@@ -33,7 +37,7 @@ export function NewCardDialog({
   useEffect(() => {
     if (open && cardType) {
       setType(cardType.id);
-      setStatus('default');
+      setStatus(defaultStatus);
       const defaults: Record<string, unknown> = {};
       for (const field of fieldsToRender) {
         if (field?.defaultValue !== undefined) defaults[field.id] = field.defaultValue;
@@ -83,7 +87,7 @@ export function NewCardDialog({
           <label className="field">
             <span>Status</span>
             <select aria-label="Status" value={status} onChange={(event) => setStatus(event.target.value)}>
-              {enabledStatuses.map((item) => (
+              {initialStatuses.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name}
                 </option>

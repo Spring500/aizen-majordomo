@@ -1,9 +1,9 @@
-import { renderToStaticMarkup } from 'react-dom/server';
+﻿import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 import { CardDrawer } from '../../web/src/components/CardDrawer.tsx';
-import type { AppConfig, Card } from '../../web/src/types.ts';
+import type { WorkspaceConfig, Card } from '../../web/src/types.ts';
 
-const config: AppConfig = {
+const config: WorkspaceConfig = {
   cardTypes: [
     {
       id: 'decision',
@@ -11,16 +11,25 @@ const config: AppConfig = {
       fields: [
         { id: 'title', label: '标题', kind: 'text', required: true },
         { id: 'reply', label: '正式回复', kind: 'longText' },
-        { id: 'replied_by', label: '回复人', kind: 'actor' },
       ],
       actions: [
         { id: 'update', label: '编辑', kind: 'update', writableFields: ['title'] },
-        { id: 'reply', label: '正式回复', kind: 'reply', writableFields: ['reply', 'replied_by'], requiredFields: ['reply'] },
+        { id: 'reply', label: '正式回复', kind: 'reply', writableFields: ['reply'], requiredFields: ['reply'] },
       ],
     },
   ],
-  statuses: [],
-  transitions: [],
+  statuses: [{ id: 'waiting', name: '等待回复' }],
+  transitions: [
+    {
+      id: 'submit_reply',
+      name: '提交回复',
+      cardType: 'decision',
+      fromStatus: 'waiting',
+      toStatus: 'resolved',
+      writableFields: ['reply'],
+      requiredFields: ['reply'],
+    },
+  ],
   hookActionModels: [],
   hooks: [],
 };
@@ -30,21 +39,13 @@ const card: Card = {
   type: 'decision',
   status: 'waiting',
   fields: { title: '需要回复' },
-  title: '需要回复',
-  body: null,
-  options: null,
-  lane: null,
-  priority: null,
-  assignee: null,
-  reply: null,
-  replied_by: null,
   created_by: 'agent',
   created_at: 1,
   updated_at: 1,
 };
 
 describe('卡片详情正式回复区', () => {
-  it('声明 reply action 的 decision 会显示正式回复输入区', () => {
+  it('waiting decision 会通过 submit_reply transition 显示正式回复入口', () => {
     const html = renderToStaticMarkup(
       <CardDrawer
         card={card}
@@ -52,12 +53,16 @@ describe('卡片详情正式回复区', () => {
         open={true}
         onClose={vi.fn()}
         onSave={async () => undefined}
-        onReply={async () => undefined}
+        onTransition={async () => undefined}
       />,
     );
 
-    expect(html, '详情抽屉应显示正式回复标题。若失败：检查 CardDrawer 是否识别 reply action').toContain('正式回复');
-    expect(html, '未回复 decision 应显示提交回复按钮。若失败：检查回复输入区是否渲染').toContain('提交回复');
+    expect(html, 'submit_reply transition 应渲染正式回复字段。若失败：检查 CardDrawer 是否按 transition.writableFields 渲染').toContain(
+      '正式回复',
+    );
+    expect(html, 'submit_reply transition 应显示提交回复按钮。若失败：检查 transition.name 是否作为按钮文案').toContain(
+      '提交回复',
+    );
   });
 
   it('详情状态使用配置显示名而不是原始状态 id', () => {
@@ -68,7 +73,7 @@ describe('卡片详情正式回复区', () => {
         open={true}
         onClose={vi.fn()}
         onSave={async () => undefined}
-        onReply={async () => undefined}
+        onTransition={async () => undefined}
       />,
     );
 
